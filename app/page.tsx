@@ -36,6 +36,9 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { PatientCanvas } from "@/components/canvas/PatientCanvas"
 import { CedarPatientMatcher } from "@/components/cedar-patient-matcher"
+import { CedarAgentContext } from "@/components/cedar-agent-context"
+import { useRegisterState, useCedarStore } from "cedar-os"
+import { z } from "zod"
 
 type PatientLab = {
   name: string
@@ -341,6 +344,22 @@ export default function PatientDashboard() {
   const [matchingInProgress, setMatchingInProgress] = useState<string | null>(null)
   const [glowingPatients, setGlowingPatients] = useState<string[]>([])
 
+  // CedarOS agent context handlers
+  const handleHighlightPatients = (patientIds: string[]) => {
+    setHighlightedPatients(patientIds)
+    setGlowingPatients(patientIds)
+    
+    // Remove glowing effect after 3 seconds
+    setTimeout(() => {
+      setGlowingPatients([])
+    }, 3000)
+  }
+
+  const handleClearHighlights = () => {
+    setHighlightedPatients([])
+    setGlowingPatients([])
+  }
+
   // Function to handle Cedar AI patient matching
   const handleCedarMatchStart = (updateId: string) => {
     setMatchingInProgress(updateId)
@@ -348,14 +367,28 @@ export default function PatientDashboard() {
   }
 
   const handleCedarMatchComplete = (matchingIds: string[]) => {
+    console.log('🎨 handleCedarMatchComplete called with:', matchingIds)
+    
     // Set highlighted patients and add glowing effect
     setHighlightedPatients(matchingIds)
     setGlowingPatients(matchingIds)
     
-    // Remove glowing effect after 3 seconds
+    console.log('🎨 State updated - highlightedPatients:', matchingIds)
+    console.log('🎨 State updated - glowingPatients:', matchingIds)
+    
+    // Show success notification
+    if (matchingIds.length > 0) {
+      console.log(`🎉 Found ${matchingIds.length} matching patients!`)
+      // You could add a toast notification here if you have a toast system
+    } else {
+      console.log('ℹ️ No matching patients found')
+    }
+    
+    // Remove glowing effect after 5 seconds (longer for demo)
     setTimeout(() => {
       setGlowingPatients([])
-    }, 3000)
+      console.log('🎨 Glowing effect removed after 5 seconds')
+    }, 5000)
     
     setMatchingInProgress(null)
   }
@@ -712,6 +745,15 @@ export default function PatientDashboard() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* CedarOS Agent Context */}
+      <CedarAgentContext
+        patients={patients}
+        updates={updates}
+        highlightedPatients={highlightedPatients}
+        onHighlightPatients={handleHighlightPatients}
+        onClearHighlights={handleClearHighlights}
+      />
+      
       <div className="flex h-screen">
         {/* Main Content */}
         <div className="flex-1 flex">
@@ -739,6 +781,7 @@ export default function PatientDashboard() {
           </div>
         </div>
       </div>
+
     </div>
   )
 }

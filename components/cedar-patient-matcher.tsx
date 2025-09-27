@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useRegisterState, useCedarStore } from "cedar-os"
 import { Button } from "@/components/ui/button"
 import { Users, Loader2, Sparkles } from "lucide-react"
+import { z } from "zod"
 
 type PatientWithMeta = {
   id: string
@@ -37,19 +38,15 @@ export function CedarPatientMatcher({
   onMatchStart,
   isMatching 
 }: CedarPatientMatcherProps) {
-  // Use local state for simplicity and reliability
-  const [localState, setLocalState] = useState({
-    matchingResults: null,
-    isProcessing: false,
-    error: null
-  })
+  const executeStateSetter = useCedarStore((state) => state.executeStateSetter)
 
   const handleMatchPatients = async () => {
     onMatchStart()
-    setLocalState(prev => ({ ...prev, isProcessing: true, error: null }))
-
+    
     try {
-      // Create a comprehensive patient context for the AI
+      console.log('Starting AI analysis for update:', updateId)
+      
+      // Create comprehensive patient context for the AI
       const patientContext = patients.map(patient => ({
         id: patient.id,
         name: patient.name,
@@ -65,7 +62,7 @@ export function CedarPatientMatcher({
         priority: patient.priority
       }))
 
-      // Use Cedar's AI agent to analyze the research update and match patients
+      // Use a simpler, more direct approach
       const analysisPrompt = `
 Analyze this medical research update and identify which patients would be affected:
 
@@ -88,8 +85,6 @@ Return ONLY a JSON array of patient IDs that match the criteria, like this:
 If no patients match, return an empty array: []
 `
 
-      // This will use Cedar's AI agent to process the request
-      console.log('Sending AI analysis request for update:', updateId)
       const response = await fetch('/api/cedar/ai-analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,21 +94,24 @@ If no patients match, return an empty array: []
         })
       })
 
-      console.log('AI analysis response status:', response.status)
-
       if (response.ok) {
         const data = await response.json()
         const matchingIds = data.matchingPatientIds || []
         
-        console.log('AI analysis results:', { matchingIds, analysis: data.analysis })
+        console.log('🎯 AI analysis results:', { 
+          matchingIds, 
+          analysis: data.analysis,
+          totalPatients: patients.length,
+          patientIds: patients.map(p => p.id)
+        })
         
-        setLocalState(prev => ({ 
-          ...prev,
-          matchingResults: matchingIds,
-          isProcessing: false 
-        }))
-        
+        // Call the completion handler
+        console.log('🚀 Calling onMatchComplete with:', matchingIds)
         onMatchComplete(matchingIds)
+        
+        // Also log the patient names for debugging
+        const matchingPatients = patients.filter(p => matchingIds.includes(p.id))
+        console.log('👥 Matching patients:', matchingPatients.map(p => ({ id: p.id, name: p.name })))
       } else {
         const errorData = await response.json().catch(() => ({}))
         console.error('AI analysis failed:', errorData)
@@ -121,12 +119,9 @@ If no patients match, return an empty array: []
       }
 
     } catch (error) {
-      console.error('Cedar AI matching error:', error)
-      setLocalState(prev => ({ 
-        ...prev,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        isProcessing: false 
-      }))
+      console.error('AI matching error:', error)
+      // Reset loading state on error
+      onMatchComplete([])
     }
   }
 
@@ -134,10 +129,10 @@ If no patients match, return an empty array: []
     <Button
       size="sm"
       onClick={handleMatchPatients}
-      disabled={isMatching || localState.isProcessing}
+      disabled={isMatching}
       className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
     >
-      {isMatching || localState.isProcessing ? (
+      {isMatching ? (
         <>
           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           AI Matching...

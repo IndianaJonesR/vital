@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Use OpenAI to analyze the research update and match patients
     const response = await openai.chat.completions.create({
-      model: 'gpt-4',
+      model: 'gpt-3.5-turbo', // Using faster model
       messages: [
         {
           role: 'system',
@@ -37,7 +37,7 @@ Be precise and only include patients who clearly meet the criteria mentioned in 
         }
       ],
       temperature: 0.1,
-      max_tokens: 1000
+      max_tokens: 500 // Reduced token limit for faster response
     })
 
     const aiResponse = response.choices[0]?.message?.content

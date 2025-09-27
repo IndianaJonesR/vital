@@ -157,6 +157,13 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Debug logging for highlighting
+  console.log('🎨 PatientCanvas received:', { 
+    highlightedPatients, 
+    glowingPatients, 
+    totalPatients: patients.length 
+  })
+
   const handleZoomIn = useCallback(() => {
     setZoom(prev => Math.min(prev * 1.2, 3))
   }, [])
@@ -476,11 +483,11 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               >
                 <div className="absolute">
                   <Card
-                    className={`surface-card transition-all duration-200 ${priorityConfig.glow} w-64 h-80 cursor-move ${
+                    className={`surface-card transition-all duration-300 ${priorityConfig.glow} w-64 h-80 cursor-move ${
                       highlightedPatients.includes(patient.id)
-                        ? `ring-2 ring-primary shadow-lg shadow-primary/10`
+                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/30 border-2 border-red-500`
                         : glowingPatients.includes(patient.id)
-                        ? `ring-2 ring-primary shadow-lg shadow-primary/20 animate-pulse`
+                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/50 animate-pulse border-2 border-red-500`
                         : "hover:shadow-lg"
                     } overflow-hidden group`}
                   >
@@ -498,6 +505,11 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
                             <PriorityIcon className="h-3 w-3" />
                             {patient.priority}
                           </Badge>
+                          {highlightedPatients.includes(patient.id) && (
+                            <Badge className="text-xs bg-red-500 text-white animate-pulse">
+                              🎯 MATCH
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
