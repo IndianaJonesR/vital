@@ -15,8 +15,6 @@ import {
   User,
   TestTube,
   Menu,
-  Heart,
-  Brain,
   Zap,
   TrendingUp,
   AlertTriangle,
@@ -390,34 +388,34 @@ export default function PatientDashboard() {
       case "type 2 diabetes":
       case "diabetes":
       case "pre-diabetes":
-        return "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200 shadow-sm"
+        return "bg-blue-50 text-blue-700 border border-blue-200"
       case "hypertension":
       case "portal htn":
-        return "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200 shadow-sm"
+        return "bg-rose-50 text-rose-700 border border-rose-200"
       case "her2+ breast cancer":
       case "prostate cancer":
       case "thyroid cancer":
-        return "bg-gradient-to-r from-purple-50 to-pink-50 text-purple-700 border border-purple-200 shadow-sm"
+        return "bg-purple-50 text-purple-700 border border-purple-200"
       case "asthma":
       case "copd":
-        return "bg-gradient-to-r from-green-50 to-emerald-50 text-green-700 border border-green-200 shadow-sm"
+        return "bg-emerald-50 text-emerald-700 border border-emerald-200"
       case "atrial fibrillation":
       case "heart failure":
       case "cad":
-        return "bg-gradient-to-r from-rose-50 to-red-50 text-rose-700 border border-rose-200 shadow-sm"
+        return "bg-red-50 text-red-700 border border-red-200"
       case "anxiety disorder":
       case "depression":
       case "migraine":
-        return "bg-gradient-to-r from-indigo-50 to-blue-50 text-indigo-700 border border-indigo-200 shadow-sm"
+        return "bg-indigo-50 text-indigo-700 border border-indigo-200"
       case "rheumatoid arthritis":
       case "lupus":
       case "osteoarthritis":
-        return "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200 shadow-sm"
+        return "bg-amber-50 text-amber-700 border border-amber-200"
       case "sleep apnea":
       case "obesity":
-        return "bg-gradient-to-r from-teal-50 to-cyan-50 text-teal-700 border border-teal-200 shadow-sm"
+        return "bg-cyan-50 text-cyan-700 border border-cyan-200"
       default:
-        return "bg-gradient-to-r from-gray-50 to-slate-50 text-gray-700 border border-gray-200 shadow-sm"
+        return "bg-slate-50 text-slate-700 border border-slate-200"
     }
   }
 
@@ -425,42 +423,42 @@ export default function PatientDashboard() {
     switch (priority) {
       case "critical":
         return {
-          color: "bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-lg shadow-red-500/25",
+          color: "bg-rose-500 text-white",
           icon: AlertTriangle,
-          ring: "ring-red-200",
-          glow: "shadow-red-500/15",
-          pulse: "animate-pulse-glow",
+          ring: "ring-rose-200",
+          glow: "shadow-red-200/30",
+          pulse: "",
         }
       case "high":
         return {
-          color: "bg-gradient-to-r from-orange-500 to-amber-600 text-white shadow-lg shadow-orange-500/25",
+          color: "bg-amber-500 text-white",
           icon: TrendingUp,
-          ring: "ring-orange-200",
-          glow: "shadow-orange-500/15",
-          pulse: "animate-soft-glow",
+          ring: "ring-amber-200",
+          glow: "shadow-orange-200/30",
+          pulse: "",
         }
       case "medium":
         return {
-          color: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg shadow-yellow-500/25",
+          color: "bg-yellow-400 text-amber-900",
           icon: Clock,
           ring: "ring-yellow-200",
-          glow: "shadow-yellow-500/15",
+          glow: "shadow-yellow-200/30",
           pulse: "",
         }
       case "low":
         return {
-          color: "bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg shadow-green-500/25",
+          color: "bg-emerald-500 text-white",
           icon: CheckCircle,
           ring: "ring-green-200",
-          glow: "shadow-green-500/15",
+          glow: "shadow-emerald-200/30",
           pulse: "",
         }
       default:
         return {
-          color: "bg-gradient-to-r from-gray-500 to-slate-600 text-white shadow-lg shadow-gray-500/25",
+          color: "bg-slate-500 text-white",
           icon: Clock,
           ring: "ring-gray-200",
-          glow: "shadow-gray-500/15",
+          glow: "shadow-slate-200/30",
           pulse: "",
         }
     }
@@ -469,17 +467,17 @@ export default function PatientDashboard() {
   const getCategoryColor = (category: string) => {
     switch (category) {
       case "Guidelines":
-        return "bg-gradient-to-r from-blue-500 to-cyan-500"
+        return "bg-blue-500"
       case "Drug Approval":
-        return "bg-gradient-to-r from-purple-500 to-pink-500"
+        return "bg-purple-500"
       case "Research":
-        return "bg-gradient-to-r from-green-500 to-emerald-500"
+        return "bg-emerald-500"
       case "Treatment":
-        return "bg-gradient-to-r from-orange-500 to-amber-500"
+        return "bg-amber-500"
       case "AI Research":
-        return "bg-gradient-to-r from-violet-500 to-purple-500"
+        return "bg-violet-500"
       default:
-        return "bg-gradient-to-r from-gray-500 to-slate-500"
+        return "bg-slate-500"
     }
   }
 
@@ -492,41 +490,42 @@ export default function PatientDashboard() {
 
   const SidebarContent = () => (
     <>
-      <div className="p-6 border-b border-sidebar-border/50">
-        <h1 className="text-xl font-bold text-sidebar-foreground flex items-center gap-3">
-          <div className="relative">
-            <Stethoscope className="h-7 w-7 text-primary animate-gentle-bounce" />
-            <div className="absolute inset-0 h-7 w-7 text-primary animate-ping opacity-20" />
+      <div className="p-6 border-b border-sidebar-border/60">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+            <Stethoscope className="h-5 w-5" />
           </div>
-          <span className="bg-gradient-to-r from-primary to-chart-4 bg-clip-text text-transparent">MedCare Pro</span>
-        </h1>
-        <p className="text-xs text-muted-foreground mt-1 opacity-80">Professional Patient Management System</p>
+          <div>
+            <h1 className="text-lg font-semibold text-sidebar-foreground">MedCare Pro</h1>
+            <p className="text-xs text-muted-foreground">Patient Management Platform</p>
+          </div>
+        </div>
       </div>
-      <nav className="flex-1 p-4 space-y-3">
+      <nav className="flex-1 p-4 space-y-2">
         <Button
-          variant="default"
-          className="w-full justify-start gap-3 bg-gradient-to-r from-primary to-chart-4 hover:from-primary/90 hover:to-chart-4/90 shadow-lg shadow-primary/15 professional-hover"
+          variant="secondary"
+          className="w-full justify-start gap-3 bg-secondary text-sidebar-foreground hover:bg-secondary/80"
         >
           <Activity className="h-4 w-4" />
           Patient Dashboard
         </Button>
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-primary transition-all duration-300 professional-hover"
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-muted/60"
         >
           <BarChart3 className="h-4 w-4" />
           Analytics & Reports
         </Button>
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-primary transition-all duration-300 professional-hover"
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-muted/60"
         >
           <Award className="h-4 w-4" />
           Quality Metrics
         </Button>
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-primary transition-all duration-300 professional-hover"
+          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-muted/60"
         >
           <Settings className="h-4 w-4" />
           Settings
@@ -538,55 +537,36 @@ export default function PatientDashboard() {
   const UpdatesFeedContent = () => (
     <>
       <div className="mb-6">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="relative">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-r from-primary to-chart-4 flex items-center justify-center shadow-lg shadow-primary/20">
-              <Brain className="h-4 w-4 text-white" />
-            </div>
-            <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full flex items-center justify-center animate-pulse shadow-sm">
-              <span className="text-xs text-white font-bold">{updates.length}</span>
-            </div>
-          </div>
+        <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-lg font-bold text-sidebar-foreground bg-gradient-to-r from-primary to-chart-4 bg-clip-text text-transparent">
-              Research Stream
-            </h3>
-            <p className="text-xs text-muted-foreground">Latest medical insights & guidelines</p>
+            <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
+            <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
           </div>
+          <div className="text-xs text-muted-foreground">{updates.length} updates</div>
         </div>
       </div>
 
-      <div className="space-y-4 relative">
-        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-chart-4 to-transparent opacity-20"></div>
-
-        {updates.map((update, index) => (
+      <div className="space-y-4">
+        {updates.map((update) => (
           <Drawer key={update.id}>
             <DrawerTrigger asChild>
               <div
-                className="group cursor-pointer relative professional-hover"
+                className="group cursor-pointer"
                 onClick={() => handleUpdateClick(update)}
               >
-                <div className="relative pl-8">
-                  <div
-                    className={`absolute left-4 top-4 w-4 h-4 rounded-full ${getCategoryColor(update.category)} shadow-lg transform -translate-x-1/2 group-hover:scale-125 transition-all duration-300`}
-                  >
-                    <div className="absolute inset-0 rounded-full animate-ping opacity-20"></div>
-                  </div>
-
-                  <Card className="glass-effect hover:shadow-xl hover:shadow-primary/10 transition-all duration-500 group-hover:scale-[1.02] border-l-4 border-l-transparent group-hover:border-l-primary overflow-hidden">
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 animate-shimmer"></div>
-
-                    <CardContent className="p-4 relative z-10">
+                <div className="relative">
+                  <Card className="surface-card border border-border/60 hover:shadow-lg transition-all duration-200">
+                    <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-3">
                             <Badge
-                              className={`text-xs px-3 py-1 font-medium shadow-sm ${
+                              className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
                                 update.urgency === "critical"
-                                  ? "bg-gradient-to-r from-red-50 to-rose-50 text-red-700 border border-red-200"
+                                  ? "text-rose-600"
                                   : update.urgency === "high"
-                                    ? "bg-gradient-to-r from-orange-50 to-amber-50 text-orange-700 border border-orange-200"
-                                    : "bg-gradient-to-r from-blue-50 to-cyan-50 text-blue-700 border border-blue-200"
+                                    ? "text-amber-600"
+                                    : "text-blue-600"
                               }`}
                             >
                               {update.category}
@@ -597,7 +577,7 @@ export default function PatientDashboard() {
                             </Badge>
                           </div>
 
-                          <h4 className="font-semibold text-sm text-sidebar-foreground mb-3 text-balance group-hover:text-primary transition-colors duration-300 leading-tight">
+                          <h4 className="font-semibold text-sm text-sidebar-foreground mb-3 leading-tight">
                             {update.title}
                           </h4>
 
@@ -625,11 +605,11 @@ export default function PatientDashboard() {
                 </div>
               </div>
             </DrawerTrigger>
-            <DrawerContent className="max-h-[85vh] glass-effect">
-              <DrawerHeader className="border-b border-border/50">
-                <DrawerTitle className="text-balance text-xl font-bold">{update.title}</DrawerTitle>
+            <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
+              <DrawerHeader className="border-b border-border/60">
+                <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
                 <div className="flex items-center gap-3 mt-3">
-                  <Badge className={getCategoryColor(update.category)} variant="outline">
+                  <Badge className={`${getCategoryColor(update.category)} text-white`}>
                     {update.category}
                   </Badge>
                   <Badge variant="outline" className="bg-muted/50">
@@ -642,7 +622,7 @@ export default function PatientDashboard() {
                 </div>
               </DrawerHeader>
               <div className="p-6 space-y-6 overflow-y-auto">
-                <div className="glass-effect p-4 rounded-lg">
+                <div className="surface-subtle p-4">
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
                     <Eye className="h-4 w-4 text-primary" />
                     Research Summary
@@ -661,7 +641,7 @@ export default function PatientDashboard() {
                       if (!patient) return null
 
                       return (
-                        <Card key={patient.id} className="glass-effect p-4 hover:shadow-lg transition-all duration-300">
+                        <Card key={patient.id} className="surface-card p-4">
                           <div className="flex items-center justify-between mb-3">
                             <h5 className="font-semibold flex items-center gap-2">
                               <User className="h-4 w-4 text-primary" />
@@ -684,12 +664,12 @@ export default function PatientDashboard() {
                           <div className="flex gap-2 flex-wrap">
                             <Button
                               size="sm"
-                              className="bg-gradient-to-r from-primary to-chart-4 hover:from-primary/90 hover:to-chart-4/90 shadow-lg shadow-primary/20"
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
                             >
                               <Sparkles className="h-3 w-3 mr-1" />
                               AI Explainer
                             </Button>
-                            <Button size="sm" variant="outline" className="hover:bg-muted/50 bg-transparent">
+                            <Button size="sm" variant="outline" className="hover:bg-muted/50">
                               <FileText className="h-3 w-3 mr-1" />
                               Summary
                             </Button>
@@ -714,7 +694,7 @@ export default function PatientDashboard() {
   return (
     <div className="min-h-screen bg-background">
       <div className="flex h-screen">
-        <div className="hidden lg:flex w-64 glass-effect border-r border-sidebar-border/50 flex-col">
+        <div className="hidden lg:flex w-72 glass-effect border-r border-sidebar-border/60 flex-col bg-background">
           <SidebarContent />
         </div>
 
@@ -723,12 +703,12 @@ export default function PatientDashboard() {
             <Button
               variant="ghost"
               size="icon"
-              className="lg:hidden fixed top-4 left-4 z-50 glass-effect border border-border/50 hover:bg-muted/50"
+              className="lg:hidden fixed top-4 left-4 z-50 surface-card border border-border/70"
             >
               <Menu className="h-4 w-4" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0 glass-effect">
+          <SheetContent side="left" className="w-64 p-0 surface-card border border-border/60">
             <div className="flex flex-col h-full">
               <SidebarContent />
             </div>
@@ -737,46 +717,32 @@ export default function PatientDashboard() {
 
         {/* Main Content */}
         <div className="flex-1 flex">
-          <div className="flex-1 p-4 lg:p-6 overflow-y-auto">
-            <div className="flex items-center justify-between mb-8 lg:block">
-              <div className="lg:mb-8">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="relative">
-                    <Heart className="h-8 w-8 text-primary animate-float medical-accent-blue" />
-                    <div className="absolute inset-0 h-8 w-8 text-primary animate-ping opacity-15" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl lg:text-3xl font-bold text-foreground bg-gradient-to-r from-primary to-chart-4 bg-clip-text text-transparent">
-                      Patient Care Dashboard
-                    </h2>
-                    <p className="text-muted-foreground hidden sm:block text-sm">
-                      Professional healthcare management • {patients.length} active patients • Real-time monitoring
-                    </p>
-                  </div>
-                </div>
+          <div className="flex-1 p-4 lg:p-8 overflow-y-auto bg-background">
+            <div className="flex items-center justify-between mb-6 lg:mb-10">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Patient Experience</p>
+                <h2 className="text-2xl lg:text-3xl font-semibold text-foreground">
+                  Patient Care Dashboard
+                </h2>
+                <p className="text-muted-foreground text-sm mt-2">
+                  Professional healthcare management for {patients.length} active patients with real-time insights.
+                </p>
               </div>
 
               <Sheet open={updatesFeedOpen} onOpenChange={setUpdatesFeedOpen}>
                 <SheetTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="lg:hidden gap-2 glass-effect border-border/50 hover:bg-muted/50 bg-transparent"
-                  >
+                  <Button variant="outline" size="sm" className="flex items-center gap-2">
                     <Bell className="h-4 w-4" />
-                    <span className="relative">
-                      Updates
-                      <div className="absolute -top-2 -right-2 h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
-                    </span>
+                    Updates
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-80 p-4 glass-effect">
+                <SheetContent side="right" className="w-80 p-4 surface-card border border-border/60">
                   <UpdatesFeedContent />
                 </SheetContent>
               </Sheet>
             </div>
 
-            <div className="grid gap-4 md:gap-6 lg:gap-8">
+            <div className="grid gap-4 md:gap-6 lg:gap-6">
               {patients.map((patient) => {
                 const priorityConfig = getPriorityConfig(patient.priority)
                 const PriorityIcon = priorityConfig.icon
@@ -784,23 +750,17 @@ export default function PatientDashboard() {
                 return (
                   <Card
                     key={patient.id}
-                    className={`glass-effect transition-all duration-500 hover:shadow-xl ${priorityConfig.glow} professional-hover ${
+                    className={`surface-card transition-all duration-200 ${priorityConfig.glow} professional-hover ${
                       highlightedPatients.includes(patient.id)
-                        ? `ring-2 ring-primary shadow-xl shadow-primary/20 scale-[1.02] animate-pulse-glow`
+                        ? `ring-2 ring-primary shadow-lg shadow-primary/10 scale-[1.01]`
                         : "hover:scale-[1.01]"
-                    } ${priorityConfig.pulse} overflow-hidden group`}
+                    } overflow-hidden group`}
                   >
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/3 via-transparent to-chart-4/3 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-
                     <CardHeader className="pb-4 relative z-10">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-base lg:text-lg flex items-center gap-3">
-                          <div className="relative">
-                            <User className="h-5 lg:h-6 w-5 lg:w-6 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
-                          </div>
-                          <span className="group-hover:text-primary transition-colors duration-300">
-                            {patient.name}
-                          </span>
+                        <CardTitle className="text-base lg:text-lg flex items-center gap-3 text-foreground">
+                          <User className="h-5 lg:h-6 w-5 lg:w-6 text-muted-foreground" />
+                          <span>{patient.name}</span>
                         </CardTitle>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs bg-muted/30 border-border/50">
@@ -815,8 +775,7 @@ export default function PatientDashboard() {
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>Last visit: {patient.lastVisit}</span>
                         <Badge className={`text-xs font-medium ${getRiskScoreColor(patient.riskScore)} shadow-sm`}>
-                          <Pulse className="h-3 w-3 mr-1" />
-                          Risk: {patient.riskScore}%
+                          <Pulse className="h-3 w-3 mr-1" /> Risk: {patient.riskScore}%
                         </Badge>
                       </div>
                     </CardHeader>
@@ -850,7 +809,7 @@ export default function PatientDashboard() {
                               {patient.labs.map((lab, index) => (
                                 <div
                                   key={index}
-                                  className="flex justify-between items-center text-sm glass-effect rounded-lg p-3 hover:bg-muted/20 transition-colors duration-300 border border-border/30"
+                                  className="flex justify-between items-center text-sm surface-subtle p-3"
                                 >
                                   <span className="font-semibold">{lab.name}:</span>
                                   <div className="flex items-center gap-2">
@@ -883,16 +842,12 @@ export default function PatientDashboard() {
                         <div className="flex gap-3 pt-3 border-t border-border/30">
                           <Button
                             size="sm"
-                            className="flex-1 bg-gradient-to-r from-primary to-chart-4 hover:from-primary/90 hover:to-chart-4/90 shadow-lg shadow-primary/15 font-medium professional-hover"
+                            className="flex-1 bg-primary hover:bg-primary/90 shadow-none font-medium"
                           >
                             <Zap className="h-3 w-3 mr-2" />
                             AI Clinical Insights
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="hover:bg-muted/30 border-border/50 bg-transparent professional-hover"
-                          >
+                          <Button size="sm" variant="outline" className="hover:bg-muted/30 border-border/50">
                             <Calendar className="h-3 w-3 mr-2" />
                             Schedule
                           </Button>
@@ -906,7 +861,7 @@ export default function PatientDashboard() {
           </div>
 
           <div className="hidden lg:block w-80 glass-effect border-l border-sidebar-border/50 overflow-y-auto">
-            <div className="p-4 sticky top-0 glass-effect backdrop-blur-xl border-b border-sidebar-border/30 z-10">
+            <div className="p-4 sticky top-0 glass-effect border-b border-sidebar-border/30 z-10">
               <UpdatesFeedContent />
             </div>
           </div>

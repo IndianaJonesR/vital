@@ -6,47 +6,44 @@
 :root {
   /* Professional light theme with modern healthcare aesthetics */
   --background: oklch(0.99 0.002 240);
-  --foreground: oklch(0.15 0.02 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.02 240);
+  --foreground: oklch(0.18 0.02 250);
+  --card: oklch(0.99 0.002 240);
+  --card-foreground: oklch(0.2 0.02 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.02 240);
-  --primary: oklch(0.55 0.18 220);
+  --popover-foreground: oklch(0.18 0.02 250);
+  --primary: oklch(0.59 0.16 235);
   --primary-foreground: oklch(0.99 0.002 240);
-  --secondary: oklch(0.96 0.01 240);
-  --secondary-foreground: oklch(0.25 0.02 240);
-  --muted: oklch(0.97 0.005 240);
-  --muted-foreground: oklch(0.5 0.02 240);
-  --accent: oklch(0.94 0.02 200);
-  --accent-foreground: oklch(0.25 0.02 240);
-  --destructive: oklch(0.6 0.2 15);
+  --secondary: oklch(0.97 0.01 240);
+  --secondary-foreground: oklch(0.33 0.02 250);
+  --muted: oklch(0.97 0.006 230);
+  --muted-foreground: oklch(0.48 0.02 250);
+  --accent: oklch(0.94 0.02 230);
+  --accent-foreground: oklch(0.3 0.02 250);
+  --destructive: oklch(0.63 0.22 20);
   --destructive-foreground: oklch(0.99 0.002 240);
-  --border: oklch(0.92 0.01 240);
-  --input: oklch(0.95 0.005 240);
-  --ring: oklch(0.55 0.18 220);
-  --chart-1: oklch(0.55 0.18 220);
-  --chart-2: oklch(0.6 0.15 180);
-  --chart-3: oklch(0.65 0.12 140);
-  --chart-4: oklch(0.5 0.2 280);
-  --chart-5: oklch(0.58 0.18 320);
+  --border: oklch(0.93 0.01 240);
+  --input: oklch(0.96 0.005 240);
+  --ring: oklch(0.59 0.16 235);
+  --chart-1: oklch(0.59 0.16 235);
+  --chart-2: oklch(0.62 0.14 205);
+  --chart-3: oklch(0.68 0.12 155);
+  --chart-4: oklch(0.54 0.17 275);
+  --chart-5: oklch(0.63 0.15 315);
   --radius: 0.75rem;
-  --sidebar: oklch(0.98 0.005 240);
-  --sidebar-foreground: oklch(0.2 0.02 240);
-  --sidebar-primary: oklch(0.55 0.18 220);
+  --sidebar: oklch(0.99 0.002 240);
+  --sidebar-foreground: oklch(0.22 0.02 250);
+  --sidebar-primary: oklch(0.59 0.16 235);
   --sidebar-primary-foreground: oklch(0.99 0.002 240);
-  --sidebar-accent: oklch(0.95 0.01 240);
-  --sidebar-accent-foreground: oklch(0.25 0.02 240);
-  --sidebar-border: oklch(0.9 0.01 240);
-  --sidebar-ring: oklch(0.55 0.18 220);
+  --sidebar-accent: oklch(0.97 0.01 240);
+  --sidebar-accent-foreground: oklch(0.3 0.02 250);
+  --sidebar-border: oklch(0.92 0.01 240);
+  --sidebar-ring: oklch(0.59 0.16 235);
 
   /* Professional gradient variables for modern effects */
-  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.18 220), oklch(0.5 0.2 280));
-  --gradient-secondary: linear-gradient(135deg, oklch(0.94 0.02 200), oklch(0.96 0.01 240));
-  --gradient-accent: linear-gradient(135deg, oklch(0.6 0.15 180), oklch(0.55 0.18 220));
-  --glow-primary: 0 0 20px oklch(0.55 0.18 220 / 0.15);
-  --glow-secondary: 0 0 15px oklch(0.5 0.2 280 / 0.1);
-  --glass-bg: oklch(1 0 0 / 0.8);
-  --glass-border: oklch(0.9 0.01 240 / 0.3);
+  --gradient-primary: linear-gradient(135deg, oklch(0.59 0.16 235), oklch(0.54 0.17 275));
+  --gradient-secondary: linear-gradient(135deg, oklch(0.98 0.005 240), oklch(0.95 0.01 220));
+  --gradient-accent: linear-gradient(135deg, oklch(0.62 0.14 205), oklch(0.59 0.16 235));
+  --shadow-soft: 0 24px 50px -30px oklch(0.3 0.05 250 / 0.35);
 }
 
 .dark {
@@ -134,10 +131,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    /* Professional light background with subtle medical-inspired pattern */
-    background-image: radial-gradient(circle at 20% 20%, oklch(0.55 0.18 220 / 0.03) 0%, transparent 50%),
-      radial-gradient(circle at 80% 80%, oklch(0.5 0.2 280 / 0.03) 0%, transparent 50%),
-      linear-gradient(135deg, oklch(0.99 0.002 240) 0%, oklch(0.98 0.005 240) 100%);
+    background-image: none;
   }
 }
 
@@ -215,10 +209,10 @@
 
 /* Professional glass effect for light mode */
 .glass-effect {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(180%);
-  border: 1px solid var(--glass-border);
-  box-shadow: 0 8px 32px oklch(0.55 0.18 220 / 0.08);
+  background: var(--card);
+  border: 1px solid color-mix(in oklch, var(--border) 75%, transparent);
+  box-shadow: 0 18px 32px -24px oklch(0.33 0.05 250 / 0.65);
+  backdrop-filter: none;
 }
 
 .gradient-border {
@@ -240,12 +234,25 @@
 
 /* Professional hover effects */
 .professional-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .professional-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 12px 40px oklch(0.55 0.18 220 / 0.12);
+  box-shadow: 0 24px 40px -22px oklch(0.3 0.05 250 / 0.28);
+}
+
+.surface-card {
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+  box-shadow: 0 18px 40px -28px oklch(0.3 0.05 250 / 0.55);
+}
+
+.surface-subtle {
+  background: color-mix(in oklch, var(--background) 85%, var(--muted) 15%);
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
 }
 
 /* Medical-inspired accent colors */
