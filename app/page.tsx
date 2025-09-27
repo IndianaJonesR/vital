@@ -34,6 +34,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { PatientCanvas } from "@/components/canvas/PatientCanvas"
 
 type PatientLab = {
   name: string
@@ -729,161 +730,13 @@ export default function PatientDashboard() {
       <div className="flex h-screen">
         {/* Main Content */}
         <div className="flex-1 flex">
-          <div className="flex-1 p-4 lg:p-8 overflow-y-auto bg-background">
-            <div className="flex items-center justify-between mb-6 lg:mb-10">
-              <div>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-                    <Stethoscope className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Patient Experience</p>
-                    <h2 className="text-2xl lg:text-3xl font-semibold text-foreground">
-                      Patient Care Dashboard
-                    </h2>
-                  </div>
-                </div>
-                <p className="text-muted-foreground text-sm mt-2">
-                  Professional healthcare management for {patients.length} active patients with real-time insights.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:gap-6 lg:gap-6">
-          {error && !loading && (
-            <Alert variant="destructive">
-              <AlertTitle>Unable to load patients</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-
-          {!loading && !error && patients.length === 0 && (
-            <Alert>
-              <AlertTitle>No patients found</AlertTitle>
-              <AlertDescription>
-                Your Supabase table is empty. Add records to `patients` or seed the database to populate this view.
-              </AlertDescription>
-            </Alert>
-          )}
-
-              {patients.map((patient) => {
-                const priorityConfig = getPriorityConfig(patient.priority)
-                const PriorityIcon = priorityConfig.icon
-
-                return (
-                  <Card
-                    key={patient.id}
-                    className={`surface-card transition-all duration-200 ${priorityConfig.glow} professional-hover ${
-                      highlightedPatients.includes(patient.id)
-                        ? `ring-2 ring-primary shadow-lg shadow-primary/10 scale-[1.01]`
-                        : glowingPatients.includes(patient.id)
-                        ? `ring-2 ring-primary shadow-lg shadow-primary/20 scale-[1.02] animate-pulse`
-                        : "hover:scale-[1.01]"
-                    } overflow-hidden group`}
-                  >
-                    <CardHeader className="pb-4 relative z-10">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-base lg:text-lg flex items-center gap-3 text-foreground">
-                          <User className="h-5 lg:h-6 w-5 lg:w-6 text-muted-foreground" />
-                          <span>{patient.name}</span>
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs bg-muted/30 border-border/50">
-                            Age {patient.age}
-                          </Badge>
-                          <Badge className={`text-xs ${priorityConfig.color} flex items-center gap-1 font-medium`}>
-                            <PriorityIcon className="h-3 w-3" />
-                            {patient.priority}
-                          </Badge>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>Last visit: {patient.lastVisit}</span>
-                        <Badge className={`text-xs font-medium ${getRiskScoreColor(patient.riskScore)} shadow-sm`}>
-                          <Pulse className="h-3 w-3 mr-1" /> Risk: {patient.riskScore}%
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="relative z-10">
-                      <div className="space-y-5">
-                        <div>
-                          <p className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                            <Shield className="h-3 w-3" />
-                            Medical Conditions
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {patient.conditions.map((condition, index) => (
-                              <Badge
-                                key={index}
-                                className={`${getConditionColor(condition)} font-medium`}
-                                variant="secondary"
-                              >
-                                {condition}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-
-                        {patient.labs.length > 0 && (
-                          <div>
-                            <p className="text-sm font-semibold text-muted-foreground mb-3 flex items-center gap-2">
-                              <TestTube className="h-3 w-3" />
-                              Laboratory Results
-                            </p>
-                            <div className="space-y-2">
-                              {patient.labs.map((lab, index) => (
-                                <div
-                                  key={index}
-                                  className="flex justify-between items-center text-sm surface-subtle p-3"
-                                >
-                                  <span className="font-semibold">{lab.name}:</span>
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-bold">{lab.value}</span>
-                                    <Badge
-                                      variant="outline"
-                                      className={`text-xs font-medium shadow-sm ${
-                                        lab.status === "high" || lab.status === "elevated"
-                                          ? "text-red-600 border-red-200 bg-red-50"
-                                          : lab.status === "normal" ||
-                                              lab.status === "controlled" ||
-                                              lab.status === "therapeutic" ||
-                                              lab.status === "good" ||
-                                              lab.status === "stable"
-                                            ? "text-green-600 border-green-200 bg-green-50"
-                                            : lab.status === "low"
-                                              ? "text-blue-600 border-blue-200 bg-blue-50"
-                                              : "text-yellow-600 border-yellow-200 bg-yellow-50"
-                                      }`}
-                                    >
-                                      {lab.status}
-                                    </Badge>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex gap-3 pt-3 border-t border-border/30">
-                          <Button
-                            size="sm"
-                            className="flex-1 bg-primary hover:bg-primary/90 shadow-none font-medium"
-                          >
-                            <Zap className="h-3 w-3 mr-2" />
-                            AI Clinical Insights
-                          </Button>
-                          <Button size="sm" variant="outline" className="hover:bg-muted/30 border-border/50">
-                            <Calendar className="h-3 w-3 mr-2" />
-                            Schedule
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
+          <PatientCanvas 
+            patients={patients}
+            highlightedPatients={highlightedPatients}
+            glowingPatients={glowingPatients}
+            error={error}
+            loading={loading}
+          />
 
           <div className="w-80 glass-effect border-l border-sidebar-border/50 overflow-y-auto">
             <div className="p-4 sticky top-0 glass-effect border-b border-sidebar-border/30 z-10">
