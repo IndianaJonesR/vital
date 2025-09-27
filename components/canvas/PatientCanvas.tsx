@@ -30,6 +30,8 @@ import {
   Grid,
   Trash2,
   MoreHorizontal,
+  Menu,
+  X,
 } from "lucide-react"
 import Draggable from "react-draggable"
 
@@ -61,6 +63,8 @@ type PatientCanvasProps = {
   error: string | null
   loading: boolean
   onClearHighlights?: () => void
+  isResearchStreamCollapsed?: boolean
+  onToggleResearchStream?: () => void
 }
 
 const getConditionColor = (condition: string) => {
@@ -151,10 +155,10 @@ const getRiskScoreColor = (score: number) => {
   return "text-green-600 bg-green-50 border-green-200"
 }
 
-export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading, onClearHighlights }: PatientCanvasProps) {
+export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading, onClearHighlights, isResearchStreamCollapsed, onToggleResearchStream }: PatientCanvasProps) {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [showGrid, setShowGrid] = useState(true)
+  const [showGrid, setShowGrid] = useState(false) // Changed to false to remove grid by default
   const canvasRef = useRef<HTMLDivElement>(null)
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
@@ -162,6 +166,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   
   // Context menu state
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  
+  // Canvas controls state
+  const [isControlsMinimized, setIsControlsMinimized] = useState(false)
 
   // Debug logging for highlighting
   console.log('🎨 PatientCanvas received:', { 
@@ -443,6 +450,18 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           >
             <Grid className="h-4 w-4" />
           </Button>
+          {/* Research Stream Toggle Button */}
+          {isResearchStreamCollapsed && onToggleResearchStream && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onToggleResearchStream}
+              className="h-8 w-8 p-0"
+              title="Show Research Stream"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
@@ -698,19 +717,41 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           })}
         </div>
 
-        {/* Canvas Instructions */}
-        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-3 text-xs text-gray-600 shadow-lg">
-          <div className="flex items-center gap-2 mb-1">
-            <Move className="h-3 w-3" />
-            <span className="font-medium text-gray-800">Canvas Controls</span>
+        {/* Canvas Instructions - Collapsible */}
+        {isControlsMinimized ? (
+          <Button
+            onClick={() => setIsControlsMinimized(false)}
+            className="absolute bottom-4 left-4 h-10 w-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg"
+            title="Show Canvas Controls"
+          >
+            <Move className="h-4 w-4" />
+          </Button>
+        ) : (
+          <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-3 text-xs text-gray-600 shadow-lg max-w-sm">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <Move className="h-3 w-3" />
+                <span className="font-medium text-gray-800">Canvas Controls</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsControlsMinimized(true)}
+                className="h-6 w-6 p-0 hover:bg-gray-100"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="space-y-1">
+              <div>• Click and drag any part of a card to move it</div>
+              <div>• Mouse wheel or trackpad scroll to zoom</div>
+              <div>• Pinch with two fingers to zoom on trackpad</div>
+              <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
+              <div>• <strong>Shift+click</strong> to open/close context menu</div>
+              <div>• Alt+click and drag also works for panning</div>
+            </div>
           </div>
-          <div>• Click and drag any part of a card to move it</div>
-          <div>• Mouse wheel or trackpad scroll to zoom</div>
-          <div>• Pinch with two fingers to zoom on trackpad</div>
-          <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
-          <div>• <strong>Shift+click</strong> to open/close context menu</div>
-          <div>• Alt+click and drag also works for panning</div>
-        </div>
+        )}
       </div>
     </div>
   )

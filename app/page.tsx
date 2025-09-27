@@ -26,6 +26,10 @@ import {
   Loader2,
   Users,
   Search,
+  Menu,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import {
@@ -343,6 +347,7 @@ export default function PatientDashboard() {
   const [error, setError] = useState<string | null>(null)
   const [matchingInProgress, setMatchingInProgress] = useState<string | null>(null)
   const [glowingPatients, setGlowingPatients] = useState<string[]>([])
+  const [isResearchStreamCollapsed, setIsResearchStreamCollapsed] = useState(false)
 
   // CedarOS agent context handlers
   const handleHighlightPatients = (patientIds: string[]) => {
@@ -764,17 +769,36 @@ export default function PatientDashboard() {
             error={error}
             loading={loading}
             onClearHighlights={handleClearHighlights}
+            isResearchStreamCollapsed={isResearchStreamCollapsed}
+            onToggleResearchStream={() => setIsResearchStreamCollapsed(!isResearchStreamCollapsed)}
           />
 
-          <div className="w-80 glass-effect border-l border-sidebar-border/50 overflow-y-auto">
+          {/* Collapsible Research Stream */}
+          <div className={`transition-all duration-300 ease-in-out ${
+            isResearchStreamCollapsed 
+              ? 'w-0 opacity-0 overflow-hidden' 
+              : 'w-80 opacity-100'
+          } glass-effect border-l border-sidebar-border/50 overflow-y-auto`}>
             <div className="p-4 sticky top-0 glass-effect border-b border-sidebar-border/30 z-10">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
+                <div className="flex items-center gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
+                <div className="flex items-center gap-2">
+                  <div className="text-xs text-muted-foreground">
+                    {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsResearchStreamCollapsed(true)}
+                    className="h-8 w-8 p-0 hover:bg-gray-100"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               <UpdatesFeedContent />
