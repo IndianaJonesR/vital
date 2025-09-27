@@ -153,6 +153,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [showGrid, setShowGrid] = useState(true)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const [isPanning, setIsPanning] = useState(false)
+  const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
+  const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleZoomIn = useCallback(() => {
     setZoom(prev => Math.min(prev * 1.2, 3))
@@ -167,17 +170,148 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     setPan({ x: 0, y: 0 })
   }, [])
 
-  const handlePan = useCallback((e: React.MouseEvent) => {
-    if (e.buttons === 2) { // Right mouse button
-      const rect = canvasRef.current?.getBoundingClientRect()
-      if (rect) {
-        setPan(prev => ({
-          x: prev.x + e.movementX / zoom,
-          y: prev.y + e.movementY / zoom
-        }))
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    
+    // Clear any existing timeout
+    if (zoomTimeoutRef.current) {
+      clearTimeout(zoomTimeoutRef.current)
+    }
+    
+    // Use smaller zoom steps for smoother performance
+    const zoomFactor = e.deltaY > 0 ? 0.95 : 1.05
+    const newZoom = Math.max(0.3, Math.min(3, zoom * zoomFactor))
+    
+    // Get canvas rect once and cache it
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
+    // Simplified zoom calculation for better performance
+    const mouseX = e.clientX - rect.left
+    const mouseY = e.clientY - rect.top
+    
+    // Calculate the point under the mouse in canvas coordinates
+    const canvasX = (mouseX - pan.x) / zoom
+    const canvasY = (mouseY - pan.y) / zoom
+    
+    // Calculate new pan to keep the point under the mouse
+    const newPanX = mouseX - canvasX * newZoom
+    const newPanY = mouseY - canvasY * newZoom
+    
+    // Update state immediately for responsiveness
+    setZoom(newZoom)
+    setPan({ x: newPanX, y: newPanY })
+    
+    // Throttle expensive operations
+    zoomTimeoutRef.current = setTimeout(() => {
+      // Force a re-render of draggable bounds after zoom settles
+      if (canvasRef.current) {
+        canvasRef.current.dispatchEvent(new Event('resize'))
+      }
+    }, 50)
+  }, [zoom, pan])
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button === 2 || e.button === 1 || (e.button === 0 && e.altKey)) { // Right-click, middle mouse, or Alt+left click
+      setIsPanning(true)
+      setLastPanPoint({ x: e.clientX, y: e.clientY })
+      e.preventDefault()
+    }
+  }, [])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning) {
+      const deltaX = e.clientX - lastPanPoint.x
+      const deltaY = e.clientY - lastPanPoint.y
+      
+      setPan(prev => ({
+        x: prev.x + deltaX,
+        y: prev.y + deltaY
+      }))
+      
+      setLastPanPoint({ x: e.clientX, y: e.clientY })
+    }
+  }, [isPanning, lastPanPoint])
+
+  const handleMouseUp = useCallback(() => {
+    setIsPanning(false)
+  }, [])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // Only handle pinch gestures, don't interfere with single touch scrolling
+    if (e.touches.length === 2) {
+      e.preventDefault() // Prevent default only for pinch gestures
+      
+      // Store initial touch points for pinch gesture
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      )
+      
+      // Store initial state for pinch calculation
+      ;(e.target as any).__initialDistance = distance
+      ;(e.target as any).__initialZoom = zoom
+      ;(e.target as any).__initialPan = { ...pan }
+      ;(e.target as any).__centerX = (touch1.clientX + touch2.clientX) / 2
+      ;(e.target as any).__centerY = (touch1.clientY + touch2.clientY) / 2
+    }
+  }, [zoom, pan])
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    // Only prevent default for pinch gestures
+    if (e.touches.length === 2) {
+      e.preventDefault()
+      
+      // Pinch to zoom with optimized calculations
+      const touch1 = e.touches[0]
+      const touch2 = e.touches[1]
+      
+      // Use more efficient distance calculation
+      const dx = touch2.clientX - touch1.clientX
+      const dy = touch2.clientY - touch1.clientY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      const initialDistance = (e.target as any).__initialDistance
+      const initialZoom = (e.target as any).__initialZoom
+      const initialPan = (e.target as any).__initialPan
+      const centerX = (e.target as any).__centerX
+      const centerY = (e.target as any).__centerY
+      
+      if (initialDistance && initialZoom) {
+        const scale = distance / initialDistance
+        const newZoom = Math.max(0.3, Math.min(3, initialZoom * scale))
+        
+        // Optimized pan calculation
+        const rect = canvasRef.current?.getBoundingClientRect()
+        if (rect) {
+          // Simplified center calculation
+          const canvasCenterX = (centerX - rect.left - initialPan.x) / initialZoom
+          const canvasCenterY = (centerY - rect.top - initialPan.y) / initialZoom
+          
+          const newPanX = centerX - rect.left - canvasCenterX * newZoom
+          const newPanY = centerY - rect.top - canvasCenterY * newZoom
+          
+          setZoom(newZoom)
+          setPan({ x: newPanX, y: newPanY })
+        }
       }
     }
-  }, [zoom])
+  }, [])
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    // Clean up touch state when pinch gesture ends
+    if (e.touches.length < 2) {
+      if ((e.target as any).__initialDistance) {
+        delete (e.target as any).__initialDistance
+        delete (e.target as any).__initialZoom
+        delete (e.target as any).__initialPan
+        delete (e.target as any).__centerX
+        delete (e.target as any).__centerY
+      }
+    }
+  }, [])
 
   const getInitialPosition = (index: number) => {
     // Arrange patients in a grid initially
@@ -186,6 +320,27 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     const y = Math.floor(index / cols) * 320 + 50
     return { x, y }
   }
+
+  const getDraggableBounds = useCallback(() => {
+    if (!canvasRef.current) return "parent"
+    
+    const rect = canvasRef.current.getBoundingClientRect()
+    // Pre-calculate common values for efficiency
+    const panXOverZoom = pan.x / zoom
+    const panYOverZoom = pan.y / zoom
+    const widthOverZoom = rect.width / zoom
+    const heightOverZoom = rect.height / zoom
+    
+    // Calculate bounds that account for zoom and pan
+    const bounds = {
+      left: -panXOverZoom,
+      top: -panYOverZoom,
+      right: widthOverZoom - panXOverZoom - 264, // 264 is card width
+      bottom: heightOverZoom - panYOverZoom - 320, // 320 is card height
+    }
+    
+    return bounds
+  }, [zoom, pan])
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -241,10 +396,18 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       <div 
         ref={canvasRef}
         className="flex-1 relative overflow-hidden bg-gradient-to-br from-background to-muted/20"
-        onMouseMove={handlePan}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onContextMenu={(e) => e.preventDefault()}
         style={{
-          cursor: 'grab'
+          cursor: isPanning ? 'grabbing' : 'grab',
+          userSelect: 'none'
         }}
       >
         {/* Grid Background */}
@@ -308,8 +471,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <Draggable
                 key={patient.id}
                 defaultPosition={position}
-                bounds="parent"
-                handle=".drag-handle"
+                bounds={getDraggableBounds()}
+                cancel=".no-drag"
               >
                 <div className="absolute">
                   <Card
@@ -321,7 +484,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
                         : "hover:shadow-lg"
                     } overflow-hidden group`}
                   >
-                    <CardHeader className="pb-2 drag-handle cursor-move relative z-10">
+                    <CardHeader className="pb-2 relative z-10">
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-sm flex items-center gap-2 text-foreground">
                           <User className="h-4 w-4 text-muted-foreground" />
@@ -408,12 +571,12 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
                       <div className="flex gap-2 pt-2 border-t border-border/30">
                         <Button
                           size="sm"
-                          className="flex-1 bg-primary hover:bg-primary/90 shadow-none font-medium text-xs"
+                          className="flex-1 bg-primary hover:bg-primary/90 shadow-none font-medium text-xs no-drag"
                         >
                           <Zap className="h-3 w-3 mr-1" />
                           AI Insights
                         </Button>
-                        <Button size="sm" variant="outline" className="hover:bg-muted/30 border-border/50 text-xs">
+                        <Button size="sm" variant="outline" className="hover:bg-muted/30 border-border/50 text-xs no-drag">
                           <Calendar className="h-3 w-3" />
                         </Button>
                       </div>
@@ -431,9 +594,11 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             <Move className="h-3 w-3" />
             <span className="font-medium">Canvas Controls</span>
           </div>
-          <div>• Drag cards to move them around</div>
-          <div>• Right-click + drag to pan the canvas</div>
-          <div>• Use zoom controls to scale view</div>
+          <div>• Click and drag any part of a card to move it</div>
+          <div>• Mouse wheel or trackpad scroll to zoom</div>
+          <div>• Pinch with two fingers to zoom on trackpad</div>
+          <div>• Right-click and drag to pan the canvas</div>
+          <div>• Alt+click and drag also works for panning</div>
         </div>
       </div>
     </div>
