@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   Activity,
   FileText,
@@ -31,7 +32,7 @@ import {
   Award,
   Loader2,
 } from "lucide-react"
-import { createClient } from "@supabase/supabase-js"
+import { supabase } from "@/lib/supabase"
 
 type PatientLab = {
   name: string
@@ -83,6 +84,7 @@ type UpdateWithMeta = UpdateRecord & {
   readTime: string
   impactedPatients: string[]
 }
+
 
 const safeStringArray = (value: string[] | null | undefined): string[] => {
   if (!value) return []
@@ -334,7 +336,7 @@ export default function PatientDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
+  const [updatesFeedOpen, setUpdatesFeedOpen] = useState(false)
   useEffect(() => {
     const fetchData = async () => {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -342,34 +344,41 @@ export default function PatientDashboard() {
 
       if (!supabaseUrl || !supabaseAnonKey) {
         setError("Supabase environment variables are not configured.")
+        setPatients([])
+        setUpdates([])
+        setHighlightedPatients([])
         setLoading(false)
         return
       }
 
-      const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
       try {
-        const [patientsResponse, updatesResponse] = await Promise.all([
-          client.from("patients").select("*"),
-          client.from("research_updates").select("*").order("created_at", { ascending: false }),
-        ])
+        const [{ data: patientsData, error: patientsError }, { data: updatesData, error: updatesError }] =
+          await Promise.all([
+            supabase.from("patients").select("*"),
+            supabase.from("research_updates").select("*").order("created_at", { ascending: false }),
+          ])
 
-        if (patientsResponse.error) throw patientsResponse.error
-        if (updatesResponse.error) throw updatesResponse.error
+        if (patientsError) throw patientsError
+        if (updatesError) throw updatesError
 
-        const hydratedPatients = (patientsResponse.data ?? [])
+        const hydratedPatients = (patientsData ?? [])
           .map((record, index) => hydratePatient(record as PatientRecord, index))
           .sort((a, b) => b.riskScore - a.riskScore)
 
-        const hydratedUpdates = (updatesResponse.data ?? []).map((record) =>
+        const hydratedUpdates = (updatesData ?? []).map((record) =>
           hydrateUpdate(record as UpdateRecord, hydratedPatients)
         )
 
         setPatients(hydratedPatients)
         setUpdates(hydratedUpdates)
         setHighlightedPatients([])
+        setError(null)
       } catch (fetchError) {
         console.error("Failed to load data from Supabase", fetchError)
-        setError(fetchError instanceof Error ? fetchError.message : "Unable to load data")
+        setPatients([])
+        setUpdates([])
+        setHighlightedPatients([])
+        setError(fetchError instanceof Error ? fetchError.message : "Unable to load data from Supabase.")
       } finally {
         setLoading(false)
       }
@@ -532,71 +541,69 @@ export default function PatientDashboard() {
   )
 
   const UpdatesFeedContent = () => (
-    <>
-      <div className="mb-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
-            <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
-        </div>
-      </div>
-                  </div>
+    <div className="space-y-4">
+    {error && (
+      <Alert variant="destructive">
+        <AlertTitle>Unable to load updates</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+      </Alert>
+    )}
 
-      <div className="space-y-4">
-        {loading ? (
-          <Card className="surface-card border border-border/60">
-            <CardContent className="flex items-center gap-3 p-4 text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              <span>Loading latest research updates...</span>
-            </CardContent>
-          </Card>
-        ) : updates.length === 0 ? (
-          <Card className="surface-card border border-border/60">
-            <CardContent className="p-4 text-sm text-muted-foreground">
-              No research updates yet. As CedarOS actions arrive from Impericus, they will appear here.
-            </CardContent>
-          </Card>
-        ) : (
-          updates.map((update) => (
-            <Drawer
-              key={update.id}
-              onOpenChange={(open) => setHighlightedPatients(open ? update.impactedPatients ?? [] : [])}
-            >
-              <DrawerTrigger asChild>
-                <div className="group cursor-pointer">
-                  <div className="relative">
-                    <Card className="surface-card border border-border/60 hover:shadow-lg transition-all duration-200">
-                      <CardContent className="p-4">
+      {loading && !error && (
+        <Card className="surface-card border border-border/60">
+          <CardContent className="flex items-center gap-3 p-4 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span>Fetching the latest research updates…</span>
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error && updates.length === 0 && (
+        <Card className="surface-card border border-border/60">
+          <CardContent className="p-4 text-sm text-muted-foreground">
+            No updates yet. Once Impericus streams new guidance, it will appear here in real time.
+          </CardContent>
+        </Card>
+      )}
+
+      {!loading && !error &&
+        updates.map((update) => (
+          <Drawer
+            key={update.id}
+            onOpenChange={(open) => setHighlightedPatients(open ? update.impactedPatients ?? [] : [])}
+          >
+            <DrawerTrigger asChild>
+              <div className="group cursor-pointer">
+                <Card className="surface-card border border-border/60 hover:shadow-lg transition-all duration-200">
+                  <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-3">
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex items-center gap-2">
                             <Badge
-                                className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
+                            className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
                                 update.urgency === "critical"
-                                    ? "text-rose-600"
+                                ? "text-rose-600"
                                   : update.urgency === "high"
-                                      ? "text-amber-600"
-                                      : "text-blue-600"
+                                  ? "text-amber-600"
+                                  : "text-blue-600"
                               }`}
                             >
                               {update.category}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">{update.timestamp}</span>
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">{update.timestamp}</span>
                             <Badge variant="outline" className="text-xs opacity-70 bg-muted/30">
                               {update.readTime}
                             </Badge>
                           </div>
 
-                            <h4 className="font-semibold text-sm text-sidebar-foreground mb-3 leading-tight">
+                        <div>
+                          <h4 className="font-semibold text-sm text-sidebar-foreground leading-snug mb-2">
                             {update.title}
                           </h4>
-
-                          <p className="text-xs text-muted-foreground text-pretty line-clamp-3 mb-3 leading-relaxed">
+                          <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
                             {update.summary}
                           </p>
+                        </div>
 
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -615,16 +622,13 @@ export default function PatientDashboard() {
                       </div>
                     </CardContent>
                   </Card>
-                </div>
               </div>
             </DrawerTrigger>
-              <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
-                <DrawerHeader className="border-b border-border/60">
-                  <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
-                <div className="flex items-center gap-3 mt-3">
-                    <Badge className={`${getCategoryColor(update.category)} text-white`}>
-                    {update.category}
-                  </Badge>
+            <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
+              <DrawerHeader className="border-b border-border/60">
+                <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
+                <div className="flex items-center flex-wrap gap-3 mt-3 text-xs">
+                  <Badge className={`${getCategoryColor(update.category)} text-white`}>{update.category}</Badge>
                   <Badge variant="outline" className="bg-muted/50">
                     {update.source}
                   </Badge>
@@ -635,7 +639,7 @@ export default function PatientDashboard() {
                 </div>
               </DrawerHeader>
               <div className="p-6 space-y-6 overflow-y-auto">
-                  <div className="surface-subtle p-4">
+                <div className="surface-subtle p-4">
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
                     <Eye className="h-4 w-4 text-primary" />
                     Research Summary
@@ -654,7 +658,7 @@ export default function PatientDashboard() {
                       if (!patient) return null
 
                       return (
-                          <Card key={patient.id} className="surface-card p-4">
+                        <Card key={patient.id} className="surface-card p-4">
                           <div className="flex items-center justify-between mb-3">
                             <h5 className="font-semibold flex items-center gap-2">
                               <User className="h-4 w-4 text-primary" />
@@ -675,20 +679,14 @@ export default function PatientDashboard() {
                             ))}
                           </div>
                           <div className="flex gap-2 flex-wrap">
-                            <Button
-                              size="sm"
-                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                            >
-                              <Sparkles className="h-3 w-3 mr-1" />
-                              AI Explainer
+                            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                              <Sparkles className="h-3 w-3 mr-1" /> AI Explainer
                             </Button>
-                              <Button size="sm" variant="outline" className="hover:bg-muted/50">
-                              <FileText className="h-3 w-3 mr-1" />
-                              Summary
+                            <Button size="sm" variant="outline" className="hover:bg-muted/50">
+                              <FileText className="h-3 w-3 mr-1" /> Summary
                             </Button>
                             <Button size="sm" variant="ghost" className="gap-1 hover:bg-muted/50">
-                              <Calendar className="h-3 w-3" />
-                              Schedule
+                              <Calendar className="h-3 w-3" /> Schedule
                             </Button>
                           </div>
                         </Card>
@@ -699,10 +697,8 @@ export default function PatientDashboard() {
               </div>
             </DrawerContent>
           </Drawer>
-          ))
-        )}
+        ))}
       </div>
-    </>
   )
 
   return (
@@ -743,20 +739,45 @@ export default function PatientDashboard() {
                     </p>
               </div>
 
-              <Sheet>
+              <Sheet open={updatesFeedOpen} onOpenChange={setUpdatesFeedOpen}>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="flex items-center gap-2">
                     <Bell className="h-4 w-4" />
                       Updates
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-80 p-4 surface-card border border-border/60">
+                <SheetContent side="right" className="w-80 p-4 surface-card border border-border/60 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
+                      <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                  {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
+                    </div>
+                  </div>
                   <UpdatesFeedContent />
                 </SheetContent>
               </Sheet>
             </div>
 
             <div className="grid gap-4 md:gap-6 lg:gap-6">
+          {error && !loading && (
+            <Alert variant="destructive">
+              <AlertTitle>Unable to load patients</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {!loading && !error && patients.length === 0 && (
+            <Alert>
+              <AlertTitle>No patients found</AlertTitle>
+              <AlertDescription>
+                Your Supabase table is empty. Add records to `patients` or seed the database to populate this view.
+              </AlertDescription>
+            </Alert>
+          )}
+
               {patients.map((patient) => {
                 const priorityConfig = getPriorityConfig(patient.priority)
                 const PriorityIcon = priorityConfig.icon
