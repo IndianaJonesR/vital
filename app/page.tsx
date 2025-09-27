@@ -35,6 +35,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { PatientCanvas } from "@/components/canvas/PatientCanvas"
+import { CedarPatientMatcher } from "@/components/cedar-patient-matcher"
 
 type PatientLab = {
   name: string
@@ -340,36 +341,23 @@ export default function PatientDashboard() {
   const [matchingInProgress, setMatchingInProgress] = useState<string | null>(null)
   const [glowingPatients, setGlowingPatients] = useState<string[]>([])
 
-  // Function to find matching patients using Cedar-OS API
-  const findMatchingPatients = async (updateText: string, updateId: string) => {
+  // Function to handle Cedar AI patient matching
+  const handleCedarMatchStart = (updateId: string) => {
     setMatchingInProgress(updateId)
     setGlowingPatients([])
+  }
+
+  const handleCedarMatchComplete = (matchingIds: string[]) => {
+    // Set highlighted patients and add glowing effect
+    setHighlightedPatients(matchingIds)
+    setGlowingPatients(matchingIds)
     
-    try {
-      const response = await fetch('/api/cedar/find-matches', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updateText, updateId })
-      })
-      
-      if (response.ok) {
-        const data = await response.json()
-        const matchingIds = data.matchingPatientIds || []
-        
-        // Set highlighted patients and add glowing effect
-        setHighlightedPatients(matchingIds)
-        setGlowingPatients(matchingIds)
-        
-        // Remove glowing effect after 3 seconds
-        setTimeout(() => {
-          setGlowingPatients([])
-        }, 3000)
-      }
-    } catch (error) {
-      console.error('Error finding matching patients:', error)
-    } finally {
-      setMatchingInProgress(null)
-    }
+    // Remove glowing effect after 3 seconds
+    setTimeout(() => {
+      setGlowingPatients([])
+    }, 3000)
+    
+    setMatchingInProgress(null)
   }
   useEffect(() => {
     const fetchData = async () => {
@@ -623,17 +611,14 @@ export default function PatientDashboard() {
                     {/* Hover overlay with actions */}
                     <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
                       <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            findMatchingPatients(update.summary, update.id)
-                          }}
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
-                        >
-                          <Users className="h-4 w-4 mr-2" />
-                          Match Patients
-                        </Button>
+                        <CedarPatientMatcher
+                          updateText={update.summary}
+                          updateId={update.id}
+                          patients={patients}
+                          onMatchStart={() => handleCedarMatchStart(update.id)}
+                          onMatchComplete={handleCedarMatchComplete}
+                          isMatching={matchingInProgress === update.id}
+                        />
                         <Button
                           size="sm"
                           variant="secondary"
