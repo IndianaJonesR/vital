@@ -1,0 +1,7 @@
+id,source,title,summary,rule_condition,rule_criterion,rule_action
+11111111-aaaa-4bbb-8ccc-111111111111,Guideline,2025 ADA Diabetes Guidelines Released,"Earlier insulin initiation recommended when HbA1c > 8.0% despite oral therapy.","Type 2 Diabetes","HbA1c > 8.0%","Initiate insulin earlier"
+11111111-aaaa-4bbb-8ccc-111111111112,FDA,FDA Approval: New HER2+ Breast Cancer Therapy,"Once-daily oral therapy reduces progression risk by 35% compared to standard care.","HER2+ Breast Cancer","Eligible HER2+ profile","Consider prescribing new oral therapy"
+11111111-aaaa-4bbb-8ccc-111111111113,Payer,New Coverage Policy: COPD Inhaler Tier Change,"Trelegy moved from Tier 3 to Tier 2, lowering average copay from $120 to $40.","COPD","All COPD patients on Trelegy","Switch to preferred Tier 2 inhaler if appropriate"
+11111111-aaaa-4bbb-8ccc-111111111114,Guideline,Updated Hypertension Treatment Threshold,"Start antihypertensive therapy if BP ≥ 130/80 (was 140/90).","Hypertension","BP ≥ 130/80","Start antihypertensive earlier"
+11111111-aaaa-4bbb-8ccc-111111111115,FDA,FDA Approval: Novel Asthma Biologic,"New biologic reduces severe asthma exacerbations by 50% in high-risk patients.","Asthma","Severe persistent asthma","Consider new biologic therapy for eligible patients"
+11111111-aaaa-4bbb-8ccc-111111111116,Payer,Diabetes Drug Cost Reduction,"Metformin extended-release moved to $5 generic tier at most insurers.","Type 2 Diabetes","Patients on Metformin","Switch patients to ER formulation when cost is a barrier"
