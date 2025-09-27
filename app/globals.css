@@ -1,0 +1,263 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Professional light theme with modern healthcare aesthetics */
+  --background: oklch(0.99 0.002 240);
+  --foreground: oklch(0.15 0.02 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 240);
+  --primary: oklch(0.55 0.18 220);
+  --primary-foreground: oklch(0.99 0.002 240);
+  --secondary: oklch(0.96 0.01 240);
+  --secondary-foreground: oklch(0.25 0.02 240);
+  --muted: oklch(0.97 0.005 240);
+  --muted-foreground: oklch(0.5 0.02 240);
+  --accent: oklch(0.94 0.02 200);
+  --accent-foreground: oklch(0.25 0.02 240);
+  --destructive: oklch(0.6 0.2 15);
+  --destructive-foreground: oklch(0.99 0.002 240);
+  --border: oklch(0.92 0.01 240);
+  --input: oklch(0.95 0.005 240);
+  --ring: oklch(0.55 0.18 220);
+  --chart-1: oklch(0.55 0.18 220);
+  --chart-2: oklch(0.6 0.15 180);
+  --chart-3: oklch(0.65 0.12 140);
+  --chart-4: oklch(0.5 0.2 280);
+  --chart-5: oklch(0.58 0.18 320);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.98 0.005 240);
+  --sidebar-foreground: oklch(0.2 0.02 240);
+  --sidebar-primary: oklch(0.55 0.18 220);
+  --sidebar-primary-foreground: oklch(0.99 0.002 240);
+  --sidebar-accent: oklch(0.95 0.01 240);
+  --sidebar-accent-foreground: oklch(0.25 0.02 240);
+  --sidebar-border: oklch(0.9 0.01 240);
+  --sidebar-ring: oklch(0.55 0.18 220);
+
+  /* Professional gradient variables for modern effects */
+  --gradient-primary: linear-gradient(135deg, oklch(0.55 0.18 220), oklch(0.5 0.2 280));
+  --gradient-secondary: linear-gradient(135deg, oklch(0.94 0.02 200), oklch(0.96 0.01 240));
+  --gradient-accent: linear-gradient(135deg, oklch(0.6 0.15 180), oklch(0.55 0.18 220));
+  --glow-primary: 0 0 20px oklch(0.55 0.18 220 / 0.15);
+  --glow-secondary: 0 0 15px oklch(0.5 0.2 280 / 0.1);
+  --glass-bg: oklch(1 0 0 / 0.8);
+  --glass-border: oklch(0.9 0.01 240 / 0.3);
+}
+
+.dark {
+  /* Keep dark theme for potential toggle */
+  --background: oklch(0.04 0.01 240);
+  --foreground: oklch(0.98 0.005 240);
+  --card: oklch(0.08 0.015 240);
+  --card-foreground: oklch(0.98 0.005 240);
+  --popover: oklch(0.08 0.015 240);
+  --popover-foreground: oklch(0.98 0.005 240);
+  --primary: oklch(0.7 0.25 200);
+  --primary-foreground: oklch(0.04 0.01 240);
+  --secondary: oklch(0.12 0.02 240);
+  --secondary-foreground: oklch(0.9 0.005 240);
+  --muted: oklch(0.12 0.02 240);
+  --muted-foreground: oklch(0.7 0.01 240);
+  --accent: oklch(0.16 0.03 280);
+  --accent-foreground: oklch(0.9 0.005 240);
+  --destructive: oklch(0.6 0.25 15);
+  --destructive-foreground: oklch(0.98 0.005 240);
+  --border: oklch(0.16 0.02 240);
+  --input: oklch(0.16 0.02 240);
+  --ring: oklch(0.7 0.25 200);
+  --chart-1: oklch(0.7 0.25 200);
+  --chart-2: oklch(0.75 0.2 160);
+  --chart-3: oklch(0.8 0.15 120);
+  --chart-4: oklch(0.65 0.3 280);
+  --chart-5: oklch(0.75 0.25 320);
+  --sidebar: oklch(0.06 0.015 240);
+  --sidebar-foreground: oklch(0.95 0.005 240);
+  --sidebar-primary: oklch(0.7 0.25 200);
+  --sidebar-primary-foreground: oklch(0.04 0.01 240);
+  --sidebar-accent: oklch(0.12 0.02 240);
+  --sidebar-accent-foreground: oklch(0.9 0.005 240);
+  --sidebar-border: oklch(0.16 0.02 240);
+  --sidebar-ring: oklch(0.7 0.25 200);
+  --glass-bg: oklch(0.08 0.015 240 / 0.8);
+  --glass-border: oklch(0.16 0.02 240 / 0.5);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Professional light background with subtle medical-inspired pattern */
+    background-image: radial-gradient(circle at 20% 20%, oklch(0.55 0.18 220 / 0.03) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, oklch(0.5 0.2 280 / 0.03) 0%, transparent 50%),
+      linear-gradient(135deg, oklch(0.99 0.002 240) 0%, oklch(0.98 0.005 240) 100%);
+  }
+}
+
+/* Enhanced animations and effects for professional modern UI */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px oklch(0.55 0.18 220 / 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px oklch(0.55 0.18 220 / 0.4), 0 0 30px oklch(0.55 0.18 220 / 0.2);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes gentle-bounce {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes soft-glow {
+  0%,
+  100% {
+    box-shadow: 0 2px 10px oklch(0.55 0.18 220 / 0.1);
+  }
+  50% {
+    box-shadow: 0 4px 20px oklch(0.55 0.18 220 / 0.2), 0 0 30px oklch(0.5 0.2 280 / 0.1);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, oklch(0.55 0.18 220 / 0.08), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 3s infinite;
+}
+
+.animate-gentle-bounce {
+  animation: gentle-bounce 4s ease-in-out infinite;
+}
+
+.animate-soft-glow {
+  animation: soft-glow 4s ease-in-out infinite;
+}
+
+/* Professional glass effect for light mode */
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 32px oklch(0.55 0.18 220 / 0.08);
+}
+
+.gradient-border {
+  position: relative;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  background: var(--gradient-primary);
+  border-radius: inherit;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: xor;
+}
+
+/* Professional hover effects */
+.professional-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.professional-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px oklch(0.55 0.18 220 / 0.12);
+}
+
+/* Medical-inspired accent colors */
+.medical-accent-blue {
+  color: oklch(0.55 0.18 220);
+}
+.medical-accent-teal {
+  color: oklch(0.6 0.15 180);
+}
+.medical-accent-purple {
+  color: oklch(0.5 0.2 280);
+}
+.medical-accent-green {
+  color: oklch(0.65 0.12 140);
+}
