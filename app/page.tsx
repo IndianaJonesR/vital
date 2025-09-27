@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -29,359 +29,354 @@ import {
   BarChart3,
   Stethoscope,
   Award,
+  Loader2,
 } from "lucide-react"
+import { createClient } from "@supabase/supabase-js"
 
-const patients = [
-  {
-    id: 1,
-    name: "Sarah L",
-    age: 54,
-    conditions: ["Type 2 Diabetes", "Neuropathy"],
-    labs: [
-      { name: "HbA1c", value: 9.1, status: "high" },
-      { name: "Glucose", value: 245, status: "high" },
-    ],
-    priority: "high",
-    lastVisit: "2 days ago",
-    riskScore: 85,
-  },
-  {
-    id: 2,
-    name: "James K",
-    age: 61,
-    conditions: ["Diabetes", "Hypertension", "CAD"],
-    labs: [
-      { name: "HbA1c", value: 8.5, status: "high" },
-      { name: "BP", value: "145/90", status: "elevated" },
-      { name: "Cholesterol", value: 280, status: "high" },
-    ],
-    priority: "critical",
-    lastVisit: "1 week ago",
-    riskScore: 92,
-  },
-  {
-    id: 3,
-    name: "Maya S",
-    age: 47,
-    conditions: ["HER2+ Breast Cancer", "Chemotherapy"],
-    labs: [
-      { name: "CEA", value: 3.2, status: "normal" },
-      { name: "WBC", value: 3.8, status: "low" },
-    ],
-    priority: "critical",
-    lastVisit: "3 days ago",
-    riskScore: 88,
-  },
-  {
-    id: 4,
-    name: "Robert Chen",
-    age: 38,
-    conditions: ["Asthma", "Allergic Rhinitis"],
-    labs: [
-      { name: "IgE", value: 245, status: "elevated" },
-      { name: "Peak Flow", value: "85%", status: "good" },
-    ],
-    priority: "medium",
-    lastVisit: "5 days ago",
-    riskScore: 45,
-  },
-  {
-    id: 5,
-    name: "Elena Rodriguez",
-    age: 72,
-    conditions: ["Atrial Fibrillation", "Heart Failure", "CKD"],
-    labs: [
-      { name: "BNP", value: 850, status: "high" },
-      { name: "INR", value: 2.3, status: "therapeutic" },
-      { name: "Creatinine", value: 1.8, status: "elevated" },
-    ],
-    priority: "critical",
-    lastVisit: "1 day ago",
-    riskScore: 94,
-  },
-  {
-    id: 6,
-    name: "Michael Thompson",
-    age: 29,
-    conditions: ["Anxiety Disorder", "Depression"],
-    labs: [{ name: "TSH", value: 2.1, status: "normal" }],
-    priority: "low",
-    lastVisit: "2 weeks ago",
-    riskScore: 25,
-  },
-  {
-    id: 7,
-    name: "Dr. Lisa Park",
-    age: 45,
-    conditions: ["Migraine", "Hypertension"],
-    labs: [
-      { name: "BP", value: "138/85", status: "elevated" },
-      { name: "Magnesium", value: 1.9, status: "normal" },
-    ],
-    priority: "medium",
-    lastVisit: "4 days ago",
-    riskScore: 55,
-  },
-  {
-    id: 8,
-    name: "Ahmed Hassan",
-    age: 56,
-    conditions: ["COPD", "Type 2 Diabetes", "Sleep Apnea"],
-    labs: [
-      { name: "HbA1c", value: 7.2, status: "controlled" },
-      { name: "FEV1", value: "65%", status: "moderate" },
-      { name: "O2 Sat", value: "94%", status: "low" },
-    ],
-    priority: "high",
-    lastVisit: "6 days ago",
-    riskScore: 78,
-  },
-  {
-    id: 9,
-    name: "Jennifer Walsh",
-    age: 33,
-    conditions: ["Rheumatoid Arthritis", "Osteoporosis"],
-    labs: [
-      { name: "CRP", value: 12.5, status: "elevated" },
-      { name: "RF", value: 89, status: "positive" },
-      { name: "Bone Density", value: -2.1, status: "low" },
-    ],
-    priority: "medium",
-    lastVisit: "1 week ago",
-    riskScore: 62,
-  },
-  {
-    id: 10,
-    name: "David Kim",
-    age: 67,
-    conditions: ["Prostate Cancer", "BPH", "Hypertension"],
-    labs: [
-      { name: "PSA", value: 4.8, status: "elevated" },
-      { name: "BP", value: "142/88", status: "elevated" },
-    ],
-    priority: "high",
-    lastVisit: "3 days ago",
-    riskScore: 81,
-  },
-  {
-    id: 11,
-    name: "Maria Santos",
-    age: 41,
-    conditions: ["Lupus", "Kidney Disease", "Anemia"],
-    labs: [
-      { name: "Creatinine", value: 1.8, status: "elevated" },
-      { name: "ANA", value: "1:320", status: "positive" },
-      { name: "Hemoglobin", value: 9.2, status: "low" },
-    ],
-    priority: "critical",
-    lastVisit: "2 days ago",
-    riskScore: 89,
-  },
-  {
-    id: 12,
-    name: "Thomas Wilson",
-    age: 52,
-    conditions: ["Sleep Apnea", "Obesity", "Pre-diabetes"],
-    labs: [
-      { name: "BMI", value: 34.2, status: "obese" },
-      { name: "HbA1c", value: 6.1, status: "pre-diabetic" },
-      { name: "AHI", value: 28, status: "severe" },
-    ],
-    priority: "medium",
-    lastVisit: "1 week ago",
-    riskScore: 68,
-  },
-  {
-    id: 13,
-    name: "Isabella Chen",
-    age: 28,
-    conditions: ["Thyroid Cancer", "Post-surgical"],
-    labs: [
-      { name: "TSH", value: 0.1, status: "suppressed" },
-      { name: "Thyroglobulin", value: 2.1, status: "elevated" },
-    ],
-    priority: "high",
-    lastVisit: "4 days ago",
-    riskScore: 72,
-  },
-  {
-    id: 14,
-    name: "Marcus Johnson",
-    age: 65,
-    conditions: ["Alzheimer's", "Hypertension", "Osteoarthritis"],
-    labs: [
-      { name: "MMSE", value: 18, status: "moderate" },
-      { name: "BP", value: "148/92", status: "high" },
-    ],
-    priority: "high",
-    lastVisit: "1 week ago",
-    riskScore: 86,
-  },
-  {
-    id: 15,
-    name: "Sophia Martinez",
-    age: 35,
-    conditions: ["Multiple Sclerosis", "Fatigue Syndrome"],
-    labs: [
-      { name: "MRI Lesions", value: 8, status: "stable" },
-      { name: "Vitamin D", value: 18, status: "low" },
-    ],
-    priority: "medium",
-    lastVisit: "5 days ago",
-    riskScore: 58,
-  },
-  {
-    id: 16,
-    name: "William Brown",
-    age: 59,
-    conditions: ["Liver Cirrhosis", "Hepatitis C", "Portal HTN"],
-    labs: [
-      { name: "ALT", value: 89, status: "elevated" },
-      { name: "Bilirubin", value: 3.2, status: "high" },
-      { name: "Albumin", value: 2.8, status: "low" },
-    ],
-    priority: "critical",
-    lastVisit: "2 days ago",
-    riskScore: 91,
-  },
-  {
-    id: 17,
-    name: "Emma Davis",
-    age: 42,
-    conditions: ["Fibromyalgia", "Chronic Pain", "IBS"],
-    labs: [
-      { name: "CRP", value: 8.2, status: "elevated" },
-      { name: "Vitamin B12", value: 180, status: "low" },
-    ],
-    priority: "medium",
-    lastVisit: "1 week ago",
-    riskScore: 52,
-  },
-  {
-    id: 18,
-    name: "Alexander Lee",
-    age: 31,
-    conditions: ["Crohn's Disease", "Anemia", "Malnutrition"],
-    labs: [
-      { name: "CRP", value: 15.8, status: "high" },
-      { name: "Iron", value: 45, status: "low" },
-      { name: "Albumin", value: 3.1, status: "low" },
-    ],
-    priority: "high",
-    lastVisit: "3 days ago",
-    riskScore: 75,
-  },
-]
+type PatientLab = {
+  name: string
+  value: number | string
+  status: string
+}
 
-const updates = [
-  {
-    id: 1,
-    title: "2025 ADA Diabetes Guidelines Released",
-    summary:
-      "Revolutionary changes in diabetes management: Earlier insulin initiation recommended for HbA1c > 8.0%. New continuous glucose monitoring protocols show 40% reduction in severe hypoglycemic events.",
-    impactedPatients: [1, 2, 8, 12],
-    category: "Guidelines",
-    urgency: "critical",
-    timestamp: "2 hours ago",
-    source: "American Diabetes Association",
-    readTime: "5 min read",
-  },
-  {
-    id: 2,
-    title: "FDA Approval: Breakthrough HER2+ Therapy",
-    summary:
-      "Game-changing immunotherapy reduces progression risk by 35% with significantly improved quality of life metrics. Phase III trials show unprecedented survival benefits.",
-    impactedPatients: [3],
-    category: "Drug Approval",
-    urgency: "critical",
-    timestamp: "4 hours ago",
-    source: "FDA",
-    readTime: "8 min read",
-  },
-  {
-    id: 3,
-    title: "Heart Failure Management Revolution",
-    summary:
-      "New SGLT2 inhibitor combination therapy demonstrates 40% reduction in cardiovascular death and hospitalization. Landmark study changes treatment paradigm.",
-    impactedPatients: [5],
-    category: "Research",
-    urgency: "high",
-    timestamp: "6 hours ago",
-    source: "European Heart Journal",
-    readTime: "6 min read",
-  },
-  {
-    id: 4,
-    title: "COPD Exacerbation Prevention Breakthrough",
-    summary:
-      "Triple therapy combination with novel anti-inflammatory shows 60% reduction in severe exacerbations. Respiratory function improvements sustained at 12 months.",
-    impactedPatients: [8],
-    category: "Treatment",
-    urgency: "high",
-    timestamp: "8 hours ago",
-    source: "NEJM",
-    readTime: "7 min read",
-  },
-  {
-    id: 5,
-    title: "AI-Powered Rheumatoid Arthritis Biomarkers",
-    summary:
-      "Machine learning identifies 12 new predictive biomarkers for treatment response. Personalized therapy selection accuracy increased to 89%.",
-    impactedPatients: [9],
-    category: "AI Research",
-    urgency: "medium",
-    timestamp: "12 hours ago",
-    source: "Nature Medicine",
-    readTime: "4 min read",
-  },
-  {
-    id: 6,
-    title: "Prostate Cancer Screening Revolution",
-    summary:
-      "Multi-parametric MRI combined with AI reduces unnecessary biopsies by 45%. New risk stratification model improves early detection.",
-    impactedPatients: [10],
-    category: "Guidelines",
-    urgency: "medium",
-    timestamp: "1 day ago",
-    source: "USPSTF",
-    readTime: "6 min read",
-  },
-  {
-    id: 7,
-    title: "Lupus Treatment Paradigm Shift",
-    summary:
-      "Novel JAK inhibitor shows remarkable efficacy in refractory cases. 70% of patients achieved clinical remission in phase III trials.",
-    impactedPatients: [11],
-    category: "Drug Approval",
-    urgency: "high",
-    timestamp: "1 day ago",
-    source: "The Lancet",
-    readTime: "5 min read",
-  },
-  {
-    id: 8,
-    title: "Sleep Apnea & Metabolic Syndrome Link",
-    summary:
-      "Groundbreaking research reveals direct causal relationship. New treatment protocols address both conditions simultaneously with 80% success rate.",
-    impactedPatients: [12],
-    category: "Research",
-    urgency: "medium",
-    timestamp: "2 days ago",
-    source: "Sleep Medicine Reviews",
-    readTime: "7 min read",
-  },
-]
+type PatientRecord = {
+  id: string
+  name: string
+  age: number | null
+  conditions: string[] | null
+  meds: string[] | null
+  labs: unknown
+  created_at: string | null
+}
+
+type PriorityLevel = "critical" | "high" | "medium" | "low"
+
+type PatientWithMeta = {
+  id: string
+  name: string
+  age: number
+  conditions: string[]
+  meds: string[]
+  labs: PatientLab[]
+  priority: PriorityLevel
+  riskScore: number
+  lastVisit: string
+}
+
+type UpdateRecord = {
+  id: string
+  source: string
+  title: string
+  summary: string
+  rule_condition: string | null
+  rule_criterion: string | null
+  rule_action: string | null
+  created_at: string | null
+}
+
+type UpdateUrgency = "critical" | "high" | "medium" | "low"
+
+type UpdateWithMeta = UpdateRecord & {
+  category: string
+  urgency: UpdateUrgency
+  timestamp: string
+  readTime: string
+  impactedPatients: string[]
+}
+
+const safeStringArray = (value: string[] | null | undefined): string[] => {
+  if (!value) return []
+  return value.filter((item) => typeof item === "string")
+}
+
+const toNumericValue = (value: number | string): number => {
+  if (typeof value === "number") return value
+  const numeric = Number(String(value).replace(/[^0-9.\-]/g, ""))
+  return Number.isFinite(numeric) ? numeric : NaN
+}
+
+const computeLabStatus = (name: string, value: number | string): string => {
+  const normalized = name.toLowerCase()
+  const numericValue = toNumericValue(value)
+
+  if (normalized.includes("hba1c")) {
+    if (!Number.isFinite(numericValue)) return "unknown"
+    if (numericValue >= 9) return "high"
+    if (numericValue >= 8) return "elevated"
+    if (numericValue >= 7) return "pre-diabetic"
+    return "controlled"
+  }
+
+  if (normalized.includes("bp") || normalized.includes("blood pressure")) {
+    if (!Number.isFinite(numericValue)) return "unknown"
+    if (numericValue >= 140) return "high"
+    if (numericValue >= 130) return "elevated"
+    return "controlled"
+  }
+
+  if (normalized.includes("oxygen") || normalized.includes("o2")) {
+    if (!Number.isFinite(numericValue)) return "unknown"
+    if (numericValue < 92) return "low"
+    return "good"
+  }
+
+  return "normal"
+}
+
+const classifyPriority = (score: number): PriorityLevel => {
+  if (score >= 85) return "critical"
+  if (score >= 70) return "high"
+  if (score >= 50) return "medium"
+  return "low"
+}
+
+const computeRiskScore = (record: PatientRecord, labs: PatientLab[]): number => {
+  const conditions = safeStringArray(record.conditions).map((condition) => condition.toLowerCase())
+  let score = 35
+
+  if (conditions.some((condition) => condition.includes("diabetes"))) score += 25
+  if (conditions.some((condition) => condition.includes("copd"))) score += 18
+  if (conditions.some((condition) => condition.includes("heart") || condition.includes("atrial") || condition.includes("cardio")))
+    score += 20
+  if (conditions.some((condition) => condition.includes("cancer"))) score += 15
+  if (conditions.some((condition) => condition.includes("hypertension"))) score += 10
+  if (conditions.some((condition) => condition.includes("asthma"))) score += 8
+
+  const hbA1cLab = labs.find((lab) => lab.name.toLowerCase().includes("hba1c"))
+  if (hbA1cLab) {
+    const hbA1cValue = toNumericValue(hbA1cLab.value)
+    if (Number.isFinite(hbA1cValue)) {
+      if (hbA1cValue >= 9) score += 35
+      else if (hbA1cValue >= 8) score += 25
+      else if (hbA1cValue >= 7.2) score += 18
+      else if (hbA1cValue >= 6.5) score += 10
+    }
+  }
+
+  return Math.max(20, Math.min(100, Math.round(score)))
+}
+
+const generateLastVisit = (createdAt: string | null, index: number): string => {
+  if (createdAt) {
+    const diffMs = Date.now() - new Date(createdAt).getTime()
+    const diffDays = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)))
+    if (diffDays === 0) return "Today"
+    if (diffDays === 1) return "1 day ago"
+    if (diffDays < 7) return `${diffDays} days ago`
+    const weeks = Math.floor(diffDays / 7)
+    if (weeks === 1) return "1 week ago"
+    return `${weeks} weeks ago`
+  }
+
+  const fallbackDays = (index % 6) + 1
+  return `${fallbackDays} day${fallbackDays === 1 ? "" : "s"} ago`
+}
+
+const hydratePatient = (record: PatientRecord, index: number): PatientWithMeta => {
+  let rawLabs: { name: string; value: number | string }[] = []
+  if (Array.isArray(record.labs)) {
+    rawLabs = record.labs as { name: string; value: number | string }[]
+  } else if (typeof record.labs === "string" && record.labs.trim().startsWith("[")) {
+    try {
+      rawLabs = JSON.parse(record.labs) as { name: string; value: number | string }[]
+    } catch (error) {
+      console.warn("Unable to parse labs for patient", record.id, error)
+      rawLabs = []
+    }
+  }
+
+  const labs: PatientLab[] = rawLabs
+    .filter((lab) => lab && lab.name)
+    .map((lab) => ({
+      name: String(lab.name),
+      value: lab.value,
+      status: computeLabStatus(String(lab.name), lab.value),
+    }))
+
+  const riskScore = computeRiskScore(record, labs)
+  const priority = classifyPriority(riskScore)
+
+  return {
+    id: record.id,
+    name: record.name,
+    age: record.age ?? 0,
+    conditions: safeStringArray(record.conditions),
+    meds: safeStringArray(record.meds),
+    labs,
+    riskScore,
+    priority,
+    lastVisit: generateLastVisit(record.created_at, index),
+  }
+}
+
+const formatRelativeTimeFromNow = (timestamp: string | null): string => {
+  if (!timestamp) return "Just now"
+  const diffMs = Date.now() - new Date(timestamp).getTime()
+  const diffMinutes = Math.round(diffMs / (1000 * 60))
+
+  if (diffMinutes < 1) return "Just now"
+  if (diffMinutes < 60) return `${diffMinutes} min ago`
+  const diffHours = Math.round(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`
+  const diffDays = Math.round(diffHours / 24)
+  if (diffDays < 7) return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`
+  const diffWeeks = Math.round(diffDays / 7)
+  if (diffWeeks < 5) return `${diffWeeks} week${diffWeeks === 1 ? "" : "s"} ago`
+  const diffMonths = Math.round(diffDays / 30)
+  if (diffMonths < 12) return `${diffMonths} month${diffMonths === 1 ? "" : "s"} ago`
+  const diffYears = Math.round(diffDays / 365)
+  return `${diffYears} year${diffYears === 1 ? "" : "s"} ago`
+}
+
+const estimateReadTime = (summary: string): string => {
+  const words = summary?.split(/\s+/).length ?? 0
+  const minutes = Math.max(1, Math.round(words / 180))
+  return `${minutes} min read`
+}
+
+const mapSourceToCategory = (source: string): string => {
+  const normalized = source.toLowerCase()
+  if (normalized.includes("guideline")) return "Guidelines"
+  if (normalized.includes("fda")) return "Drug Approval"
+  if (normalized.includes("payer")) return "Policy"
+  return "Research"
+}
+
+const mapCategoryToUrgency = (category: string): UpdateUrgency => {
+  switch (category) {
+    case "Drug Approval":
+      return "critical"
+    case "Guidelines":
+      return "high"
+    case "Research":
+      return "high"
+    case "Policy":
+      return "medium"
+    default:
+      return "medium"
+  }
+}
+
+const matchesCondition = (patient: PatientWithMeta, condition?: string | null): boolean => {
+  if (!condition) return true
+  const normalized = condition.toLowerCase()
+  return patient.conditions.some((existing) => existing.toLowerCase().includes(normalized))
+}
+
+const evaluateCriterion = (patient: PatientWithMeta, criterion?: string | null): boolean => {
+  if (!criterion) return true
+  const normalized = criterion.toLowerCase()
+
+  if (normalized.includes("hba1c") && normalized.includes(">")) {
+    const thresholdMatch = normalized.match(/hba1c\s*[>≥]\s*(\d+(?:\.\d+)?)/)
+    const threshold = thresholdMatch ? Number(thresholdMatch[1]) : NaN
+    if (!Number.isFinite(threshold)) return true
+    const lab = patient.labs.find((item) => item.name.toLowerCase().includes("hba1c"))
+    if (!lab) return false
+    const value = toNumericValue(lab.value)
+    if (!Number.isFinite(value)) return false
+    return value > threshold
+  }
+
+  if (normalized.includes("eligible her2")) {
+    return patient.conditions.some((condition) => condition.toLowerCase().includes("her2+"))
+  }
+
+  if (normalized.includes("trelegy")) {
+    return patient.meds.some((med) => med.toLowerCase().includes("trelegy"))
+  }
+
+  if (normalized.includes("patients on metformin")) {
+    return patient.meds.some((med) => med.toLowerCase().includes("metformin"))
+  }
+
+  if (normalized.includes("bp") || normalized.includes("130/80")) {
+    return patient.conditions.some((condition) => condition.toLowerCase().includes("hypertension"))
+  }
+
+  if (normalized.includes("severe persistent asthma")) {
+    const hasAsthma = patient.conditions.some((condition) => condition.toLowerCase().includes("asthma"))
+    return hasAsthma && patient.riskScore >= 60
+  }
+
+  return true
+}
+
+const matchUpdateToPatients = (update: UpdateRecord, patientPool: PatientWithMeta[]): string[] => {
+  return patientPool
+    .filter(
+      (patient) =>
+        matchesCondition(patient, update.rule_condition) &&
+        evaluateCriterion(patient, update.rule_criterion)
+    )
+    .map((patient) => patient.id)
+}
+
+const hydrateUpdate = (record: UpdateRecord, patients: PatientWithMeta[]): UpdateWithMeta => {
+  const category = mapSourceToCategory(record.source)
+  const urgency = mapCategoryToUrgency(category)
+  const impactedPatients = matchUpdateToPatients(record, patients)
+
+  return {
+    ...record,
+    category,
+    urgency,
+    readTime: estimateReadTime(record.summary),
+    timestamp: formatRelativeTimeFromNow(record.created_at),
+    impactedPatients,
+  }
+}
 
 export default function PatientDashboard() {
-  const [selectedUpdate, setSelectedUpdate] = useState<(typeof updates)[0] | null>(null)
-  const [highlightedPatients, setHighlightedPatients] = useState<number[]>([])
+  const [patients, setPatients] = useState<PatientWithMeta[]>([])
+  const [updates, setUpdates] = useState<UpdateWithMeta[]>([])
+  const [highlightedPatients, setHighlightedPatients] = useState<string[]>([])
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [updatesFeedOpen, setUpdatesFeedOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleUpdateClick = (update: (typeof updates)[0]) => {
-    setSelectedUpdate(update)
-    setHighlightedPatients(update.impactedPatients)
-  }
+  useEffect(() => {
+    const fetchData = async () => {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        setError("Supabase environment variables are not configured.")
+        setLoading(false)
+        return
+      }
+
+      const client = createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false } })
+      try {
+        const [patientsResponse, updatesResponse] = await Promise.all([
+          client.from("patients").select("*"),
+          client.from("research_updates").select("*").order("created_at", { ascending: false }),
+        ])
+
+        if (patientsResponse.error) throw patientsResponse.error
+        if (updatesResponse.error) throw updatesResponse.error
+
+        const hydratedPatients = (patientsResponse.data ?? [])
+          .map((record, index) => hydratePatient(record as PatientRecord, index))
+          .sort((a, b) => b.riskScore - a.riskScore)
+
+        const hydratedUpdates = (updatesResponse.data ?? []).map((record) =>
+          hydrateUpdate(record as UpdateRecord, hydratedPatients)
+        )
+
+        setPatients(hydratedPatients)
+        setUpdates(hydratedUpdates)
+        setHighlightedPatients([])
+      } catch (fetchError) {
+        console.error("Failed to load data from Supabase", fetchError)
+        setError(fetchError instanceof Error ? fetchError.message : "Unable to load data")
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
 
   const getConditionColor = (condition: string) => {
     switch (condition.toLowerCase()) {
@@ -476,6 +471,8 @@ export default function PatientDashboard() {
         return "bg-amber-500"
       case "AI Research":
         return "bg-violet-500"
+    case "Policy":
+      return "bg-cyan-500"
       default:
         return "bg-slate-500"
     }
@@ -498,7 +495,7 @@ export default function PatientDashboard() {
           <div>
             <h1 className="text-lg font-semibold text-sidebar-foreground">MedCare Pro</h1>
             <p className="text-xs text-muted-foreground">Patient Management Platform</p>
-          </div>
+      </div>
         </div>
       </div>
       <nav className="flex-1 p-4 space-y-2">
@@ -542,31 +539,47 @@ export default function PatientDashboard() {
             <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
             <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
           </div>
-          <div className="text-xs text-muted-foreground">{updates.length} updates</div>
+          <div className="text-xs text-muted-foreground">
+            {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
         </div>
       </div>
+                  </div>
 
       <div className="space-y-4">
-        {updates.map((update) => (
-          <Drawer key={update.id}>
-            <DrawerTrigger asChild>
-              <div
-                className="group cursor-pointer"
-                onClick={() => handleUpdateClick(update)}
-              >
-                <div className="relative">
-                  <Card className="surface-card border border-border/60 hover:shadow-lg transition-all duration-200">
-                    <CardContent className="p-4">
+        {loading ? (
+          <Card className="surface-card border border-border/60">
+            <CardContent className="flex items-center gap-3 p-4 text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span>Loading latest research updates...</span>
+            </CardContent>
+          </Card>
+        ) : updates.length === 0 ? (
+          <Card className="surface-card border border-border/60">
+            <CardContent className="p-4 text-sm text-muted-foreground">
+              No research updates yet. As CedarOS actions arrive from Impericus, they will appear here.
+            </CardContent>
+          </Card>
+        ) : (
+          updates.map((update) => (
+            <Drawer
+              key={update.id}
+              onOpenChange={(open) => setHighlightedPatients(open ? update.impactedPatients ?? [] : [])}
+            >
+              <DrawerTrigger asChild>
+                <div className="group cursor-pointer">
+                  <div className="relative">
+                    <Card className="surface-card border border-border/60 hover:shadow-lg transition-all duration-200">
+                      <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-3">
                             <Badge
-                              className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
+                                className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
                                 update.urgency === "critical"
-                                  ? "text-rose-600"
+                                    ? "text-rose-600"
                                   : update.urgency === "high"
-                                    ? "text-amber-600"
-                                    : "text-blue-600"
+                                      ? "text-amber-600"
+                                      : "text-blue-600"
                               }`}
                             >
                               {update.category}
@@ -577,7 +590,7 @@ export default function PatientDashboard() {
                             </Badge>
                           </div>
 
-                          <h4 className="font-semibold text-sm text-sidebar-foreground mb-3 leading-tight">
+                            <h4 className="font-semibold text-sm text-sidebar-foreground mb-3 leading-tight">
                             {update.title}
                           </h4>
 
@@ -605,11 +618,11 @@ export default function PatientDashboard() {
                 </div>
               </div>
             </DrawerTrigger>
-            <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
-              <DrawerHeader className="border-b border-border/60">
-                <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
+              <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
+                <DrawerHeader className="border-b border-border/60">
+                  <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
                 <div className="flex items-center gap-3 mt-3">
-                  <Badge className={`${getCategoryColor(update.category)} text-white`}>
+                    <Badge className={`${getCategoryColor(update.category)} text-white`}>
                     {update.category}
                   </Badge>
                   <Badge variant="outline" className="bg-muted/50">
@@ -622,7 +635,7 @@ export default function PatientDashboard() {
                 </div>
               </DrawerHeader>
               <div className="p-6 space-y-6 overflow-y-auto">
-                <div className="surface-subtle p-4">
+                  <div className="surface-subtle p-4">
                   <h4 className="font-semibold mb-3 flex items-center gap-2">
                     <Eye className="h-4 w-4 text-primary" />
                     Research Summary
@@ -641,7 +654,7 @@ export default function PatientDashboard() {
                       if (!patient) return null
 
                       return (
-                        <Card key={patient.id} className="surface-card p-4">
+                          <Card key={patient.id} className="surface-card p-4">
                           <div className="flex items-center justify-between mb-3">
                             <h5 className="font-semibold flex items-center gap-2">
                               <User className="h-4 w-4 text-primary" />
@@ -664,12 +677,12 @@ export default function PatientDashboard() {
                           <div className="flex gap-2 flex-wrap">
                             <Button
                               size="sm"
-                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
                             >
                               <Sparkles className="h-3 w-3 mr-1" />
                               AI Explainer
                             </Button>
-                            <Button size="sm" variant="outline" className="hover:bg-muted/50">
+                              <Button size="sm" variant="outline" className="hover:bg-muted/50">
                               <FileText className="h-3 w-3 mr-1" />
                               Summary
                             </Button>
@@ -686,7 +699,8 @@ export default function PatientDashboard() {
               </div>
             </DrawerContent>
           </Drawer>
-        ))}
+          ))
+        )}
       </div>
     </>
   )
@@ -719,21 +733,21 @@ export default function PatientDashboard() {
         <div className="flex-1 flex">
           <div className="flex-1 p-4 lg:p-8 overflow-y-auto bg-background">
             <div className="flex items-center justify-between mb-6 lg:mb-10">
-              <div>
+                  <div>
                 <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Patient Experience</p>
                 <h2 className="text-2xl lg:text-3xl font-semibold text-foreground">
-                  Patient Care Dashboard
-                </h2>
+                      Patient Care Dashboard
+                    </h2>
                 <p className="text-muted-foreground text-sm mt-2">
                   Professional healthcare management for {patients.length} active patients with real-time insights.
-                </p>
+                    </p>
               </div>
 
-              <Sheet open={updatesFeedOpen} onOpenChange={setUpdatesFeedOpen}>
+              <Sheet>
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="flex items-center gap-2">
                     <Bell className="h-4 w-4" />
-                    Updates
+                      Updates
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80 p-4 surface-card border border-border/60">
