@@ -323,8 +323,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   const getInitialPosition = (index: number) => {
     // Arrange patients in a grid initially
     const cols = Math.ceil(Math.sqrt(patients.length))
-    const x = (index % cols) * 280 + 50
-    const y = Math.floor(index / cols) * 320 + 50
+    const x = (index % cols) * 300 + 50
+    const y = Math.floor(index / cols) * 400 + 50
     return { x, y }
   }
 
@@ -342,8 +342,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     const bounds = {
       left: -panXOverZoom,
       top: -panYOverZoom,
-      right: widthOverZoom - panXOverZoom - 264, // 264 is card width
-      bottom: heightOverZoom - panYOverZoom - 320, // 320 is card height
+      right: widthOverZoom - panXOverZoom - 288, // 288 is new card width (w-72)
+      bottom: heightOverZoom - panYOverZoom - 384, // 384 is new card height (h-96)
     }
     
     return bounds
@@ -483,115 +483,127 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               >
                 <div className="absolute">
                   <Card
-                    className={`surface-card transition-all duration-300 ${priorityConfig.glow} w-64 h-80 cursor-move ${
+                    className={`bg-white border-2 border-gray-200 rounded-xl shadow-lg transition-all duration-300 w-72 h-96 cursor-move ${
                       highlightedPatients.includes(patient.id)
-                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/30 border-2 border-red-500`
+                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/30 border-red-500`
                         : glowingPatients.includes(patient.id)
-                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/50 animate-pulse border-2 border-red-500`
-                        : "hover:shadow-lg"
+                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/50 animate-pulse border-red-500`
+                        : "hover:shadow-xl hover:scale-105"
                     } overflow-hidden group`}
                   >
-                    <CardHeader className="pb-2 relative z-10">
+                    {/* Header with name and age */}
+                    <CardHeader className="pb-3 pt-4 px-4">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-sm flex items-center gap-2 text-foreground">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="truncate">{patient.name}</span>
-                        </CardTitle>
-                        <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-xs bg-muted/30 border-border/50">
-                            {patient.age}
-                          </Badge>
-                          <Badge className={`text-xs ${priorityConfig.color} flex items-center gap-1 font-medium`}>
-                            <PriorityIcon className="h-3 w-3" />
-                            {patient.priority}
-                          </Badge>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-blue-600" />
+                          </div>
+                          <CardTitle className="text-lg font-semibold text-gray-800">
+                            {patient.name}
+                          </CardTitle>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-gray-800">{patient.age}</div>
                           {highlightedPatients.includes(patient.id) && (
-                            <Badge className="text-xs bg-red-500 text-white animate-pulse">
+                            <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-pulse">
                               🎯 MATCH
-                            </Badge>
+                            </div>
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span className="truncate">{patient.lastVisit}</span>
-                        <Badge className={`text-xs font-medium ${getRiskScoreColor(patient.riskScore)} shadow-sm`}>
-                          <Pulse className="h-3 w-3 mr-1" /> {patient.riskScore}%
-                        </Badge>
-                      </div>
                     </CardHeader>
-                    <CardContent className="relative z-10 p-3 space-y-3">
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                          <Shield className="h-3 w-3" />
-                          Conditions
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {patient.conditions.slice(0, 2).map((condition, idx) => (
-                            <Badge
-                              key={idx}
-                              className={`${getConditionColor(condition)} font-medium text-xs`}
-                              variant="secondary"
-                            >
-                              {condition}
-                            </Badge>
-                          ))}
-                          {patient.conditions.length > 2 && (
-                            <Badge variant="outline" className="text-xs">
-                              +{patient.conditions.length - 2}
-                            </Badge>
-                          )}
+
+                    <CardContent className="px-4 pb-4 space-y-4">
+                      {/* Last seen and Next appointment */}
+                      <div className="space-y-1">
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Last seen:</span> {patient.lastVisit}
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          <span className="font-medium">Next Appointment:</span> 10/1/2025
                         </div>
                       </div>
 
+                      {/* Conditions */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Shield className="h-4 w-4 text-gray-600" />
+                          <span className="text-sm font-semibold text-gray-700">Conditions</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {patient.conditions.map((condition, idx) => (
+                            <span
+                              key={idx}
+                              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                condition.toLowerCase().includes('diabetes')
+                                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                                  : condition.toLowerCase().includes('hypertension')
+                                  ? 'bg-red-100 text-red-700 border border-red-200'
+                                  : 'bg-gray-100 text-gray-700 border border-gray-200'
+                              }`}
+                            >
+                              {condition}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Medications */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-4 h-4 bg-red-100 rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                          </div>
+                          <span className="text-sm font-semibold text-gray-700">Medications</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {patient.meds.map((med, idx) => (
+                            <span
+                              key={idx}
+                              className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200"
+                            >
+                              {med}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Labs */}
                       {patient.labs.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                            <TestTube className="h-3 w-3" />
-                            Labs
-                          </p>
-                          <div className="space-y-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TestTube className="h-4 w-4 text-gray-600" />
+                            <span className="text-sm font-semibold text-gray-700">Labs</span>
+                          </div>
+                          <div className="space-y-2">
                             {patient.labs.slice(0, 2).map((lab, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-xs surface-subtle p-2 rounded">
-                                <span className="font-medium truncate">{lab.name}:</span>
-                                <div className="flex items-center gap-1">
-                                  <span className="font-bold">{lab.value}</span>
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-xs font-medium shadow-sm ${
+                              <div key={idx} className="flex items-center justify-between">
+                                <span className="text-sm text-gray-600 font-medium">{lab.name}:</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-bold text-gray-800">{lab.value}</span>
+                                  <span
+                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
                                       lab.status === "high" || lab.status === "elevated"
-                                        ? "text-red-600 border-red-200 bg-red-50"
+                                        ? "bg-red-100 text-red-700 border border-red-200"
                                         : lab.status === "normal" ||
                                             lab.status === "controlled" ||
                                             lab.status === "therapeutic" ||
                                             lab.status === "good" ||
                                             lab.status === "stable"
-                                          ? "text-green-600 border-green-200 bg-green-50"
+                                          ? "bg-green-100 text-green-700 border border-green-200"
                                           : lab.status === "low"
-                                            ? "text-blue-600 border-blue-200 bg-blue-50"
-                                            : "text-yellow-600 border-yellow-200 bg-yellow-50"
+                                            ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                            : "bg-yellow-100 text-yellow-700 border border-yellow-200"
                                     }`}
                                   >
                                     {lab.status}
-                                  </Badge>
+                                  </span>
                                 </div>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
-
-                      <div className="flex gap-2 pt-2 border-t border-border/30">
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-primary hover:bg-primary/90 shadow-none font-medium text-xs no-drag"
-                        >
-                          <Zap className="h-3 w-3 mr-1" />
-                          AI Insights
-                        </Button>
-                        <Button size="sm" variant="outline" className="hover:bg-muted/30 border-border/50 text-xs no-drag">
-                          <Calendar className="h-3 w-3" />
-                        </Button>
-                      </div>
                     </CardContent>
                   </Card>
                 </div>
