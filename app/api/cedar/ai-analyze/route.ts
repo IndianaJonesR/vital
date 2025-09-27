@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
 
     // Use OpenAI to analyze the research update and match patients
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo', // Using faster model
+      model: 'gpt-5-mini', // Using smarter model
       messages: [
         {
           role: 'system',

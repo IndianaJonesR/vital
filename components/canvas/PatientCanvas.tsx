@@ -28,6 +28,8 @@ import {
   RotateCcw,
   Move,
   Grid,
+  Trash2,
+  MoreHorizontal,
 } from "lucide-react"
 import Draggable from "react-draggable"
 
@@ -58,6 +60,7 @@ type PatientCanvasProps = {
   glowingPatients: string[]
   error: string | null
   loading: boolean
+  onClearHighlights?: () => void
 }
 
 const getConditionColor = (condition: string) => {
@@ -148,7 +151,7 @@ const getRiskScoreColor = (score: number) => {
   return "text-green-600 bg-green-50 border-green-200"
 }
 
-export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading }: PatientCanvasProps) {
+export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading, onClearHighlights }: PatientCanvasProps) {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [showGrid, setShowGrid] = useState(true)
@@ -156,6 +159,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   const [isPanning, setIsPanning] = useState(false)
   const [lastPanPoint, setLastPanPoint] = useState({ x: 0, y: 0 })
   const zoomTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
 
   // Debug logging for highlighting
   console.log('🎨 PatientCanvas received:', { 
@@ -222,9 +228,50 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     if (e.button === 2 || e.button === 1 || (e.button === 0 && e.altKey)) { // Right-click, middle mouse, or Alt+left click
       setIsPanning(true)
       setLastPanPoint({ x: e.clientX, y: e.clientY })
+      // Close context menu when starting to pan
+      if (contextMenu) {
+        setContextMenu(null)
+      }
       e.preventDefault()
+      e.stopPropagation()
     }
-  }, [])
+  }, [contextMenu])
+
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    // Only show context menu if not panning
+    if (!isPanning) {
+      setContextMenu({ x: e.clientX, y: e.clientY })
+    }
+  }, [isPanning])
+
+  const handleShiftClick = useCallback((e: React.MouseEvent) => {
+    if (e.shiftKey && e.button === 0 && !e.altKey) { // Shift + left click (but not alt)
+      e.preventDefault()
+      e.stopPropagation()
+      // Toggle the context menu - if it's open, close it; if closed, open it
+      if (contextMenu) {
+        setContextMenu(null)
+      } else {
+        setContextMenu({ x: e.clientX, y: e.clientY })
+      }
+    }
+  }, [contextMenu])
+
+  const handleClearHighlights = useCallback(() => {
+    if (onClearHighlights) {
+      onClearHighlights()
+    }
+    setContextMenu(null)
+  }, [onClearHighlights])
+
+  const handleClickOutside = useCallback((e: React.MouseEvent) => {
+    // Close menu when clicking on canvas (but not on menu itself)
+    if (e.target === e.currentTarget && contextMenu) {
+      setContextMenu(null)
+    }
+  }, [contextMenu])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
@@ -404,32 +451,71 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         ref={canvasRef}
         className="flex-1 relative overflow-hidden bg-gradient-to-br from-background to-muted/20"
         onWheel={handleWheel}
-        onMouseDown={handleMouseDown}
+        onMouseDown={(e) => {
+          handleMouseDown(e)
+          handleShiftClick(e)
+        }}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={handleContextMenu}
+        onClick={handleClickOutside}
         style={{
           cursor: isPanning ? 'grabbing' : 'grab',
           userSelect: 'none'
         }}
       >
-        {/* Grid Background */}
+        {/* Enhanced Grid Background */}
         {showGrid && (
           <div 
-            className="absolute inset-0 opacity-30"
+            className="absolute inset-0 opacity-20"
             style={{
               backgroundImage: `
-                linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
-                linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px)
+                linear-gradient(to right, rgba(156, 163, 175, 0.4) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(156, 163, 175, 0.4) 1px, transparent 1px),
+                linear-gradient(to right, rgba(156, 163, 175, 0.15) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(156, 163, 175, 0.15) 1px, transparent 1px)
               `,
-              backgroundSize: `${40 * zoom}px ${40 * zoom}px`,
+              backgroundSize: `${Math.max(80 * zoom, 40)}px ${Math.max(80 * zoom, 40)}px, ${Math.max(400 * zoom, 200)}px ${Math.max(400 * zoom, 200)}px`,
               transform: `translate(${pan.x}px, ${pan.y}px)`
             }}
           />
+        )}
+
+        {/* Context Menu */}
+        {contextMenu && (
+          <div
+            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[200px]"
+            style={{
+              left: contextMenu.x,
+              top: contextMenu.y,
+            }}
+          >
+            <div className="px-3 py-2 text-sm font-medium text-gray-700 border-b border-gray-100 flex items-center justify-between">
+              <span>Canvas Actions</span>
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Toggle Mode</span>
+            </div>
+            <button
+              onClick={handleClearHighlights}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4 text-red-500" />
+              Clear All Highlights
+            </button>
+            <button
+              onClick={() => setContextMenu(null)}
+              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+              More Options (Coming Soon)
+            </button>
+            <div className="px-3 py-1 text-xs text-gray-500 border-t border-gray-100">
+              Click outside or start panning to close
+            </div>
+          </div>
         )}
 
         {/* Canvas Content */}
@@ -613,15 +699,16 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         </div>
 
         {/* Canvas Instructions */}
-        <div className="absolute bottom-4 left-4 bg-background/90 backdrop-blur-sm rounded-lg border border-border/50 p-3 text-xs text-muted-foreground">
+        <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg border border-gray-200 p-3 text-xs text-gray-600 shadow-lg">
           <div className="flex items-center gap-2 mb-1">
             <Move className="h-3 w-3" />
-            <span className="font-medium">Canvas Controls</span>
+            <span className="font-medium text-gray-800">Canvas Controls</span>
           </div>
           <div>• Click and drag any part of a card to move it</div>
           <div>• Mouse wheel or trackpad scroll to zoom</div>
           <div>• Pinch with two fingers to zoom on trackpad</div>
-          <div>• Right-click and drag to pan the canvas</div>
+          <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
+          <div>• <strong>Shift+click</strong> to open/close context menu</div>
           <div>• Alt+click and drag also works for panning</div>
         </div>
       </div>

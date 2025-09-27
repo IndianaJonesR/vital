@@ -763,6 +763,7 @@ export default function PatientDashboard() {
             glowingPatients={glowingPatients}
             error={error}
             loading={loading}
+            onClearHighlights={handleClearHighlights}
           />
 
           <div className="w-80 glass-effect border-l border-sidebar-border/50 overflow-y-auto">
