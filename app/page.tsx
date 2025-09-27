@@ -5,17 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
-  Activity,
   FileText,
-  Settings,
-  Bell,
   Calendar,
   User,
   TestTube,
-  Menu,
   Zap,
   TrendingUp,
   AlertTriangle,
@@ -27,12 +22,18 @@ import {
   Target,
   Pause as Pulse,
   Eye,
-  BarChart3,
   Stethoscope,
-  Award,
   Loader2,
+  Users,
+  Search,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 type PatientLab = {
   name: string
@@ -333,10 +334,42 @@ export default function PatientDashboard() {
   const [patients, setPatients] = useState<PatientWithMeta[]>([])
   const [updates, setUpdates] = useState<UpdateWithMeta[]>([])
   const [highlightedPatients, setHighlightedPatients] = useState<string[]>([])
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [updatesFeedOpen, setUpdatesFeedOpen] = useState(false)
+  const [matchingInProgress, setMatchingInProgress] = useState<string | null>(null)
+  const [glowingPatients, setGlowingPatients] = useState<string[]>([])
+
+  // Function to find matching patients using Cedar-OS API
+  const findMatchingPatients = async (updateText: string, updateId: string) => {
+    setMatchingInProgress(updateId)
+    setGlowingPatients([])
+    
+    try {
+      const response = await fetch('/api/cedar/find-matches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updateText, updateId })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        const matchingIds = data.matchingPatientIds || []
+        
+        // Set highlighted patients and add glowing effect
+        setHighlightedPatients(matchingIds)
+        setGlowingPatients(matchingIds)
+        
+        // Remove glowing effect after 3 seconds
+        setTimeout(() => {
+          setGlowingPatients([])
+        }, 3000)
+      }
+    } catch (error) {
+      console.error('Error finding matching patients:', error)
+    } finally {
+      setMatchingInProgress(null)
+    }
+  }
   useEffect(() => {
     const fetchData = async () => {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -494,60 +527,15 @@ export default function PatientDashboard() {
     return "text-green-600 bg-green-50 border-green-200"
   }
 
-  const SidebarContent = () => (
-    <>
-      <div className="p-6 border-b border-sidebar-border/60">
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
-            <Stethoscope className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-sidebar-foreground">MedCare Pro</h1>
-            <p className="text-xs text-muted-foreground">Patient Management Platform</p>
-      </div>
-        </div>
-      </div>
-      <nav className="flex-1 p-4 space-y-2">
-        <Button
-          variant="secondary"
-          className="w-full justify-start gap-3 bg-secondary text-sidebar-foreground hover:bg-secondary/80"
-        >
-          <Activity className="h-4 w-4" />
-          Patient Dashboard
-        </Button>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-muted/60"
-        >
-          <BarChart3 className="h-4 w-4" />
-          Analytics & Reports
-        </Button>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-muted/60"
-        >
-          <Award className="h-4 w-4" />
-          Quality Metrics
-        </Button>
-        <Button
-          variant="ghost"
-          className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-muted/60"
-        >
-          <Settings className="h-4 w-4" />
-          Settings
-        </Button>
-      </nav>
-    </>
-  )
 
   const UpdatesFeedContent = () => (
     <div className="space-y-4">
-    {error && (
-      <Alert variant="destructive">
-        <AlertTitle>Unable to load updates</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
-      </Alert>
-    )}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTitle>Unable to load updates</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
 
       {loading && !error && (
         <Card className="surface-card border border-border/60">
@@ -568,197 +556,197 @@ export default function PatientDashboard() {
 
       {!loading && !error &&
         updates.map((update) => (
-          <Drawer
-            key={update.id}
-            onOpenChange={(open) => setHighlightedPatients(open ? update.impactedPatients ?? [] : [])}
-          >
-            <DrawerTrigger asChild>
-              <div className="group cursor-pointer">
-                <Card className="surface-card border border-border/60 hover:shadow-lg transition-all duration-200">
-                  <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                      <div className="flex-1 min-w-0 space-y-3">
-                        <div className="flex items-center gap-2">
-                            <Badge
-                            className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
-                                update.urgency === "critical"
-                                ? "text-rose-600"
-                                  : update.urgency === "high"
-                                  ? "text-amber-600"
-                                  : "text-blue-600"
-                              }`}
-                            >
-                              {update.category}
-                            </Badge>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">{update.timestamp}</span>
-                            <Badge variant="outline" className="text-xs opacity-70 bg-muted/30">
-                              {update.readTime}
-                            </Badge>
-                          </div>
-
-                        <div>
-                          <h4 className="font-semibold text-sm text-sidebar-foreground leading-snug mb-2">
-                            {update.title}
-                          </h4>
-                          <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                            {update.summary}
-                          </p>
-                        </div>
-
-                          <div className="flex items-center justify-between">
+          <DropdownMenu key={update.id}>
+            <DropdownMenuTrigger asChild>
+              <Drawer
+                onOpenChange={(open) => setHighlightedPatients(open ? update.impactedPatients ?? [] : [])}
+              >
+                <DrawerTrigger asChild>
+                  <div className="group cursor-pointer relative">
+                    <Card className={`surface-card border border-border/60 hover:shadow-lg transition-all duration-200 ${
+                      matchingInProgress === update.id ? 'ring-2 ring-primary animate-pulse' : ''
+                    }`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-1 min-w-0 space-y-3">
                             <div className="flex items-center gap-2">
-                              <Target className="h-3 w-3 text-primary" />
-                              <span className="text-xs text-muted-foreground font-medium">
-                                {update.impactedPatients.length} patient
-                                {update.impactedPatients.length !== 1 ? "s" : ""}
-                              </span>
+                              <Badge
+                                className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
+                                  update.urgency === "critical"
+                                    ? "text-rose-600"
+                                    : update.urgency === "high"
+                                    ? "text-amber-600"
+                                    : "text-blue-600"
+                                }`}
+                              >
+                                {update.category}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{update.timestamp}</span>
+                              <Badge variant="outline" className="text-xs opacity-70 bg-muted/30">
+                                {update.readTime}
+                              </Badge>
+                              {matchingInProgress === update.id && (
+                                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  Matching...
+                                </Badge>
+                              )}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Star className="h-3 w-3 text-yellow-500" />
-                              <span className="text-xs text-muted-foreground font-medium">{update.source}</span>
+
+                            <div>
+                              <h4 className="font-semibold text-sm text-sidebar-foreground leading-snug mb-2">
+                                {update.title}
+                              </h4>
+                              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                                {update.summary}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Target className="h-3 w-3 text-primary" />
+                                <span className="text-xs text-muted-foreground font-medium">
+                                  {update.impactedPatients.length} patient
+                                  {update.impactedPatients.length !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Star className="h-3 w-3 text-yellow-500" />
+                                <span className="text-xs text-muted-foreground font-medium">{update.source}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
+                      </CardContent>
+                    </Card>
+                    {/* Hover overlay with actions */}
+                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            findMatchingPatients(update.summary, update.id)
+                          }}
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg"
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          Match Patients
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="bg-background/90 hover:bg-background shadow-lg"
+                        >
+                          <Search className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
                       </div>
-                    </CardContent>
-                  </Card>
-              </div>
-            </DrawerTrigger>
-            <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
-              <DrawerHeader className="border-b border-border/60">
-                <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
-                <div className="flex items-center flex-wrap gap-3 mt-3 text-xs">
-                  <Badge className={`${getCategoryColor(update.category)} text-white`}>{update.category}</Badge>
-                  <Badge variant="outline" className="bg-muted/50">
-                    {update.source}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">{update.timestamp}</span>
-                  <Badge variant="outline" className="bg-primary/10 text-primary">
-                    {update.readTime}
-                  </Badge>
-                </div>
-              </DrawerHeader>
-              <div className="p-6 space-y-6 overflow-y-auto">
-                <div className="surface-subtle p-4">
-                  <h4 className="font-semibold mb-3 flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-primary" />
-                    Research Summary
-                  </h4>
-                  <p className="text-muted-foreground text-pretty leading-relaxed">{update.summary}</p>
-                </div>
-
-                <div>
-                  <h4 className="font-semibold mb-4 flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-primary" />
-                    Impacted Patients ({update.impactedPatients.length})
-                  </h4>
-                  <div className="space-y-3">
-                    {update.impactedPatients.map((patientId) => {
-                      const patient = patients.find((p) => p.id === patientId)
-                      if (!patient) return null
-
-                      return (
-                        <Card key={patient.id} className="surface-card p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-semibold flex items-center gap-2">
-                              <User className="h-4 w-4 text-primary" />
-                              {patient.name}
-                            </h5>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="outline">Age {patient.age}</Badge>
-                              <Badge className={`text-xs font-medium ${getRiskScoreColor(patient.riskScore)}`}>
-                                Risk: {patient.riskScore}%
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mb-4">
-                            {patient.conditions.map((condition, index) => (
-                              <Badge key={index} className={getConditionColor(condition)} variant="secondary">
-                                {condition}
-                              </Badge>
-                            ))}
-                          </div>
-                          <div className="flex gap-2 flex-wrap">
-                            <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                              <Sparkles className="h-3 w-3 mr-1" /> AI Explainer
-                            </Button>
-                            <Button size="sm" variant="outline" className="hover:bg-muted/50">
-                              <FileText className="h-3 w-3 mr-1" /> Summary
-                            </Button>
-                            <Button size="sm" variant="ghost" className="gap-1 hover:bg-muted/50">
-                              <Calendar className="h-3 w-3" /> Schedule
-                            </Button>
-                          </div>
-                        </Card>
-                      )
-                    })}
+                    </div>
                   </div>
-                </div>
-              </div>
-            </DrawerContent>
-          </Drawer>
+                </DrawerTrigger>
+                <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
+                  <DrawerHeader className="border-b border-border/60">
+                    <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
+                    <div className="flex items-center flex-wrap gap-3 mt-3 text-xs">
+                      <Badge className={`${getCategoryColor(update.category)} text-white`}>{update.category}</Badge>
+                      <Badge variant="outline" className="bg-muted/50">
+                        {update.source}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">{update.timestamp}</span>
+                      <Badge variant="outline" className="bg-primary/10 text-primary">
+                        {update.readTime}
+                      </Badge>
+                    </div>
+                  </DrawerHeader>
+                  <div className="p-6 space-y-6 overflow-y-auto">
+                    <div className="surface-subtle p-4">
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-primary" />
+                        Research Summary
+                      </h4>
+                      <p className="text-muted-foreground text-pretty leading-relaxed">{update.summary}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold mb-4 flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Impacted Patients ({update.impactedPatients.length})
+                      </h4>
+                      <div className="space-y-3">
+                        {update.impactedPatients.map((patientId) => {
+                          const patient = patients.find((p) => p.id === patientId)
+                          if (!patient) return null
+
+                          return (
+                            <Card key={patient.id} className="surface-card p-4">
+                              <div className="flex items-center justify-between mb-3">
+                                <h5 className="font-semibold flex items-center gap-2">
+                                  <User className="h-4 w-4 text-primary" />
+                                  {patient.name}
+                                </h5>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline">Age {patient.age}</Badge>
+                                  <Badge className={`text-xs font-medium ${getRiskScoreColor(patient.riskScore)}`}>
+                                    Risk: {patient.riskScore}%
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2 mb-4">
+                                {patient.conditions.map((condition, index) => (
+                                  <Badge key={index} className={getConditionColor(condition)} variant="secondary">
+                                    {condition}
+                                  </Badge>
+                                ))}
+                              </div>
+                              <div className="flex gap-2 flex-wrap">
+                                <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                                  <Sparkles className="h-3 w-3 mr-1" /> AI Explainer
+                                </Button>
+                                <Button size="sm" variant="outline" className="hover:bg-muted/50">
+                                  <FileText className="h-3 w-3 mr-1" /> Summary
+                                </Button>
+                                <Button size="sm" variant="ghost" className="gap-1 hover:bg-muted/50">
+                                  <Calendar className="h-3 w-3" /> Schedule
+                                </Button>
+                              </div>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </DrawerContent>
+              </Drawer>
+            </DropdownMenuTrigger>
+          </DropdownMenu>
         ))}
-      </div>
+    </div>
   )
 
   return (
     <div className="min-h-screen bg-background">
       <div className="flex h-screen">
-        <div className="hidden lg:flex w-72 glass-effect border-r border-sidebar-border/60 flex-col bg-background">
-          <SidebarContent />
-        </div>
-
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden fixed top-4 left-4 z-50 surface-card border border-border/70"
-            >
-              <Menu className="h-4 w-4" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0 surface-card border border-border/60">
-            <div className="flex flex-col h-full">
-              <SidebarContent />
-            </div>
-          </SheetContent>
-        </Sheet>
-
         {/* Main Content */}
         <div className="flex-1 flex">
           <div className="flex-1 p-4 lg:p-8 overflow-y-auto bg-background">
             <div className="flex items-center justify-between mb-6 lg:mb-10">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center text-primary">
+                    <Stethoscope className="h-5 w-5" />
+                  </div>
                   <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground mb-2">Patient Experience</p>
-                <h2 className="text-2xl lg:text-3xl font-semibold text-foreground">
+                    <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Patient Experience</p>
+                    <h2 className="text-2xl lg:text-3xl font-semibold text-foreground">
                       Patient Care Dashboard
                     </h2>
+                  </div>
+                </div>
                 <p className="text-muted-foreground text-sm mt-2">
                   Professional healthcare management for {patients.length} active patients with real-time insights.
-                    </p>
+                </p>
               </div>
-
-              <Sheet open={updatesFeedOpen} onOpenChange={setUpdatesFeedOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-2">
-                    <Bell className="h-4 w-4" />
-                      Updates
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-80 p-4 surface-card border border-border/60 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
-                      <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                  {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
-                    </div>
-                  </div>
-                  <UpdatesFeedContent />
-                </SheetContent>
-              </Sheet>
             </div>
 
             <div className="grid gap-4 md:gap-6 lg:gap-6">
@@ -788,6 +776,8 @@ export default function PatientDashboard() {
                     className={`surface-card transition-all duration-200 ${priorityConfig.glow} professional-hover ${
                       highlightedPatients.includes(patient.id)
                         ? `ring-2 ring-primary shadow-lg shadow-primary/10 scale-[1.01]`
+                        : glowingPatients.includes(patient.id)
+                        ? `ring-2 ring-primary shadow-lg shadow-primary/20 scale-[1.02] animate-pulse`
                         : "hover:scale-[1.01]"
                     } overflow-hidden group`}
                   >
@@ -895,8 +885,17 @@ export default function PatientDashboard() {
             </div>
           </div>
 
-          <div className="hidden lg:block w-80 glass-effect border-l border-sidebar-border/50 overflow-y-auto">
+          <div className="w-80 glass-effect border-l border-sidebar-border/50 overflow-y-auto">
             <div className="p-4 sticky top-0 glass-effect border-b border-sidebar-border/30 z-10">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-semibold text-sidebar-foreground">Research Stream</h3>
+                  <p className="text-xs text-muted-foreground mt-1">Latest medical insights & guidelines</p>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {loading ? "Loading..." : `${updates.length} update${updates.length === 1 ? "" : "s"}`}
+                </div>
+              </div>
               <UpdatesFeedContent />
             </div>
           </div>

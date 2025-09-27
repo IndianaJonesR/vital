@@ -9,6 +9,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  transpilePackages: ['framer-motion', 'cedar-os', 'mastra'],
+  experimental: {
+    esmExternals: 'loose',
+  },
 }
 
 export default nextConfig
