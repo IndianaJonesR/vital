@@ -202,6 +202,7 @@ export function CedarRadialSpell({ context, onAIResponse, onClearHighlights }: C
   }, [])
 
   const handleMedicationSpell = async () => {
+    console.log('Medication spell triggered')
     setIsLoading(true)
     try {
       const highlightedPatientData = context.patients.filter(p => 
@@ -260,6 +261,7 @@ Provide evidence-based medication alternatives with insurance coverage informati
   }
 
   const handlePatientAnalysis = async () => {
+    console.log('Patient analysis triggered')
     setIsLoading(true)
     try {
       const highlightedPatientData = context.patients.filter(p => 
@@ -475,48 +477,52 @@ Provide a concise analysis of the clinical implications, patient impact, and act
       ref={spellRef}
       className="fixed z-50"
       style={{
-        left: position.x - radius - 40,
-        top: position.y - radius - 40,
+        left: position.x - 100, // Center the 200px radial menu
+        top: position.y - 100,
       }}
     >
       {/* Background Circle with Opacity */}
       <div 
         className="absolute w-80 h-80 rounded-full bg-blue-500/20 backdrop-blur-sm border-2 border-blue-300/30 shadow-2xl"
         style={{
-          left: -80,
+          left: -80, // Center the 320px background circle
           top: -80,
         }}
       />
       
-      {/* Center Circle */}
-      <div className="relative">
-        <div className="w-20 h-20 bg-white border-4 border-blue-200 rounded-full shadow-2xl flex items-center justify-center">
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          ) : (
-            <Sparkles className="h-8 w-8 text-blue-500" />
-          )}
+      {/* Radial Menu Container */}
+      <div className="relative w-[200px] h-[200px]">
+        {/* Center Circle */}
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+          <div className="w-20 h-20 bg-white border-4 border-blue-200 rounded-full shadow-2xl flex items-center justify-center">
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            ) : (
+              <Sparkles className="h-8 w-8 text-blue-500" />
+            )}
+          </div>
         </div>
 
         {/* Radial Action Buttons */}
         {radialActions.map((action, index) => {
           const angle = index * angleStep - Math.PI / 2 // Start from top
-          const x = Math.cos(angle) * radius
-          const y = Math.sin(angle) * radius
           const IconComponent = action.icon
 
           return (
             <div
               key={action.id}
-              className="absolute transition-all duration-200 hover:scale-110"
+              className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 transition-all duration-200 hover:scale-110"
               style={{
-                left: x + 40 - 20, // Center the button
-                top: y + 40 - 20,
-                transform: `translate(${x * 0.1}px, ${y * 0.1}px)`, // Subtle offset for depth
+                transform: `translate(-50%, -50%) translate(${Math.cos(angle) * radius}px, ${Math.sin(angle) * radius}px)`,
               }}
             >
               <Button
-                onClick={action.action}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  console.log('Button clicked:', action.id)
+                  action.action()
+                }}
                 className={`w-12 h-12 rounded-full shadow-lg border-2 border-white ${action.color} text-white hover:shadow-xl transition-all duration-200`}
                 title={action.description}
               >
@@ -527,7 +533,7 @@ Provide a concise analysis of the clinical implications, patient impact, and act
               <div 
                 className="absolute text-xs font-medium text-gray-700 bg-white px-2 py-1 rounded shadow-sm whitespace-nowrap pointer-events-none"
                 style={{
-                  left: x > 0 ? '60px' : '-120px',
+                  left: Math.cos(angle) > 0 ? '60px' : '-120px',
                   top: '50%',
                   transform: 'translateY(-50%)',
                 }}
@@ -537,24 +543,6 @@ Provide a concise analysis of the clinical implications, patient impact, and act
             </div>
           )
         })}
-
-        {/* Context Information */}
-        <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
-          <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-lg border border-gray-200">
-            <div className="flex items-center gap-2 text-xs text-gray-600">
-              {context.highlightedPatients.length > 0 && (
-                <Badge variant="outline" className="text-xs">
-                  {context.highlightedPatients.length} patient{context.highlightedPatients.length !== 1 ? 's' : ''}
-                </Badge>
-              )}
-              {context.researchUpdate && (
-                <Badge variant="secondary" className="text-xs">
-                  {context.researchUpdate.category}
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   )

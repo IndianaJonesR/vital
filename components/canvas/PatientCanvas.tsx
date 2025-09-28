@@ -36,7 +36,6 @@ import {
 import Draggable from "react-draggable"
 import { CedarRadialSpell } from "@/components/cedar-radial-spell"
 import { AIResponseCard } from "@/components/cedar-ai-response-card"
-import { ConnectionManager } from "@/components/cedar-connection-line"
 
 type PatientLab = {
   name: string
@@ -200,12 +199,6 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   
   // AI Response Cards state
   const [aiResponseCards, setAiResponseCards] = useState<AIResponseCardState[]>([])
-  const [connections, setConnections] = useState<Array<{
-    id: string
-    from: { x: number; y: number }
-    to: { x: number; y: number }
-    isActive: boolean
-  }>>([])
 
   // Debug logging for highlighting
   console.log('🎨 PatientCanvas received:', { 
@@ -316,7 +309,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     // Find an empty space on the canvas for the response card
     const findEmptyPosition = (): { x: number; y: number } => {
       const canvasRect = canvasRef.current?.getBoundingClientRect()
-      if (!canvasRect) return { x: spellPosition.x + 200, y: spellPosition.y + 100 }
+      if (!canvasRect) return { x: 500, y: 300 } // Default position
       
       // Calculate canvas coordinates
       const canvasX = (spellPosition.x - pan.x) / zoom
@@ -324,11 +317,13 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       
       // Look for empty space in a spiral pattern
       const spiralPositions = [
-        { x: canvasX + 300, y: canvasY },
-        { x: canvasX + 200, y: canvasY + 200 },
-        { x: canvasX - 200, y: canvasY + 100 },
-        { x: canvasX + 400, y: canvasY + 100 },
-        { x: canvasX + 100, y: canvasY - 200 },
+        { x: canvasX + 400, y: canvasY },
+        { x: canvasX + 300, y: canvasY + 300 },
+        { x: canvasX - 300, y: canvasY + 200 },
+        { x: canvasX + 500, y: canvasY + 200 },
+        { x: canvasX + 200, y: canvasY - 300 },
+        { x: canvasX - 200, y: canvasY - 200 },
+        { x: canvasX + 600, y: canvasY - 100 },
       ]
       
       // Find first position that doesn't overlap with existing cards
@@ -337,7 +332,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           const cardX = card.position.x
           const cardY = card.position.y
           const distance = Math.sqrt(Math.pow(pos.x - cardX, 2) + Math.pow(pos.y - cardY, 2))
-          return distance < 200 // Minimum distance between cards
+          return distance < 250 // Minimum distance between cards
         })
         
         if (!overlaps) {
@@ -346,7 +341,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       }
       
       // Fallback to a calculated position
-      return { x: canvasX + 250, y: canvasY + 150 }
+      return { x: canvasX + 400, y: canvasY + 200 }
     }
     
     const emptyPosition = findEmptyPosition()
@@ -358,7 +353,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     // Animate the pan
     const startPan = { ...pan }
     const startTime = Date.now()
-    const duration = 800 // 800ms animation
+    const duration = 1000 // 1000ms animation
     
     const animatePan = () => {
       const elapsed = Date.now() - startTime
@@ -388,38 +383,12 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       }
       
       setAiResponseCards(prev => [...prev, newResponseCard])
-      
-      // Create connection from spell position to response card
-      const connectionId = `connection-${responseId}`
-      const newConnection = {
-        id: connectionId,
-        from: {
-          x: (spellPosition.x - pan.x) / zoom,
-          y: (spellPosition.y - pan.y) / zoom
-        },
-        to: emptyPosition,
-        isActive: true
-      }
-      
-      setConnections(prev => [...prev, newConnection])
-      
-      // Make connection inactive after animation
-      setTimeout(() => {
-        setConnections(prev => 
-          prev.map(conn => 
-            conn.id === connectionId 
-              ? { ...conn, isActive: false }
-              : conn
-          )
-        )
-      }, 3000)
-    }, 200) // Small delay to start panning first
+    }, 300) // Delay to start panning first
     
   }, [pan, zoom, aiResponseCards])
 
   const handleCloseAIResponse = useCallback((responseId: string) => {
     setAiResponseCards(prev => prev.filter(card => card.id !== responseId))
-    setConnections(prev => prev.filter(conn => !conn.id.includes(responseId)))
   }, [])
 
   const handleClickOutside = useCallback((e: React.MouseEvent) => {
@@ -854,23 +823,6 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           />
         ))}
 
-        {/* Connection Lines */}
-        <ConnectionManager connections={connections} />
-
-        {/* Spell Availability Indicator */}
-        {highlightedPatients.length > 0 && (
-          <div className="absolute top-4 right-4 z-40">
-            <div className="bg-blue-500/90 backdrop-blur-sm rounded-lg p-3 text-white shadow-lg border border-blue-400/50">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 animate-pulse" />
-                <div className="text-sm">
-                  <div className="font-medium">AI Spells Available</div>
-                  <div className="text-xs opacity-90">Shift+Click for radial menu</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Canvas Instructions - Collapsible */}
         {isControlsMinimized ? (
