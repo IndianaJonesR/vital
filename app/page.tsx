@@ -771,6 +771,7 @@ export default function PatientDashboard() {
             onClearHighlights={handleClearHighlights}
             isResearchStreamCollapsed={isResearchStreamCollapsed}
             onToggleResearchStream={() => setIsResearchStreamCollapsed(!isResearchStreamCollapsed)}
+            researchUpdate={matchingInProgress ? updates.find(u => u.id === matchingInProgress) : undefined}
           />
 
           {/* Collapsible Research Stream */}

@@ -34,6 +34,9 @@ import {
   X,
 } from "lucide-react"
 import Draggable from "react-draggable"
+import { UnifiedContextMenu } from "@/components/cedar-unified-context-menu"
+import { AIResponseBox } from "@/components/cedar-ai-response-box"
+import { ConnectionManager } from "@/components/cedar-connection-line"
 
 type PatientLab = {
   name: string
@@ -56,6 +59,24 @@ type PatientWithMeta = {
   position?: { x: number; y: number }
 }
 
+type AIResponse = {
+  alternatives: Array<{
+    medication: string
+    reason: string
+    coverage: string
+    effectiveness: string
+    sideEffects: string
+  }>
+  analysis: string
+  recommendations: string[]
+}
+
+type AIResponseBoxState = {
+  id: string
+  response: AIResponse
+  position: { x: number; y: number }
+}
+
 type PatientCanvasProps = {
   patients: PatientWithMeta[]
   highlightedPatients: string[]
@@ -65,6 +86,12 @@ type PatientCanvasProps = {
   onClearHighlights?: () => void
   isResearchStreamCollapsed?: boolean
   onToggleResearchStream?: () => void
+  researchUpdate?: {
+    id: string
+    title: string
+    summary: string
+    category: string
+  }
 }
 
 const getConditionColor = (condition: string) => {
@@ -155,7 +182,7 @@ const getRiskScoreColor = (score: number) => {
   return "text-green-600 bg-green-50 border-green-200"
 }
 
-export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading, onClearHighlights, isResearchStreamCollapsed, onToggleResearchStream }: PatientCanvasProps) {
+export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading, onClearHighlights, isResearchStreamCollapsed, onToggleResearchStream, researchUpdate }: PatientCanvasProps) {
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [showGrid, setShowGrid] = useState(false) // Changed to false to remove grid by default
@@ -169,6 +196,15 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   
   // Canvas controls state
   const [isControlsMinimized, setIsControlsMinimized] = useState(false)
+  
+  // AI Response Boxes state
+  const [aiResponseBoxes, setAiResponseBoxes] = useState<AIResponseBoxState[]>([])
+  const [connections, setConnections] = useState<Array<{
+    id: string
+    from: { x: number; y: number }
+    to: { x: number; y: number }
+    isActive: boolean
+  }>>([])
 
   // Debug logging for highlighting
   console.log('🎨 PatientCanvas received:', { 
@@ -272,6 +308,47 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     }
     setContextMenu(null)
   }, [onClearHighlights])
+
+  const handleAIResponse = useCallback((response: AIResponse, position: { x: number; y: number }) => {
+    const responseId = `response-${Date.now()}`
+    const newResponseBox: AIResponseBoxState = {
+      id: responseId,
+      response,
+      position: {
+        x: position.x + 50, // Offset slightly from spell position
+        y: position.y + 50
+      }
+    }
+    
+    setAiResponseBoxes(prev => [...prev, newResponseBox])
+    
+    // Create connection from spell position to response box
+    const connectionId = `connection-${responseId}`
+    const newConnection = {
+      id: connectionId,
+      from: position,
+      to: newResponseBox.position,
+      isActive: true
+    }
+    
+    setConnections(prev => [...prev, newConnection])
+    
+    // Make connection inactive after animation
+    setTimeout(() => {
+      setConnections(prev => 
+        prev.map(conn => 
+          conn.id === connectionId 
+            ? { ...conn, isActive: false }
+            : conn
+        )
+      )
+    }, 3000)
+  }, [])
+
+  const handleCloseAIResponse = useCallback((responseId: string) => {
+    setAiResponseBoxes(prev => prev.filter(box => box.id !== responseId))
+    setConnections(prev => prev.filter(conn => !conn.id.includes(responseId)))
+  }, [])
 
   const handleClickOutside = useCallback((e: React.MouseEvent) => {
     // Close menu when clicking on canvas (but not on menu itself)
@@ -504,37 +581,19 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           />
         )}
 
-        {/* Context Menu */}
+        {/* Unified Context Menu */}
         {contextMenu && (
-          <div
-            className="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-lg py-2 min-w-[200px]"
-            style={{
-              left: contextMenu.x,
-              top: contextMenu.y,
+          <UnifiedContextMenu
+            position={contextMenu}
+            context={{
+              highlightedPatients,
+              patients,
+              researchUpdate
             }}
-          >
-            <div className="px-3 py-2 text-sm font-medium text-gray-700 border-b border-gray-100 flex items-center justify-between">
-              <span>Canvas Actions</span>
-              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Toggle Mode</span>
-            </div>
-            <button
-              onClick={handleClearHighlights}
-              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4 text-red-500" />
-              Clear All Highlights
-            </button>
-            <button
-              onClick={() => setContextMenu(null)}
-              className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-              More Options (Coming Soon)
-            </button>
-            <div className="px-3 py-1 text-xs text-gray-500 border-t border-gray-100">
-              Click outside or start panning to close
-            </div>
-          </div>
+            onClose={() => setContextMenu(null)}
+            onClearHighlights={handleClearHighlights}
+            onAIResponse={handleAIResponse}
+          />
         )}
 
         {/* Canvas Content */}
@@ -717,6 +776,34 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           })}
         </div>
 
+        {/* AI Response Boxes */}
+        {aiResponseBoxes.map((responseBox) => (
+          <AIResponseBox
+            key={responseBox.id}
+            response={responseBox.response}
+            position={responseBox.position}
+            onClose={() => handleCloseAIResponse(responseBox.id)}
+          />
+        ))}
+
+        {/* Connection Lines */}
+        <ConnectionManager connections={connections} />
+
+        {/* Spell Availability Indicator */}
+        {highlightedPatients.length > 0 && !contextMenu && (
+          <div className="absolute top-4 right-4 z-40">
+            <div className="bg-blue-500/90 backdrop-blur-sm rounded-lg p-3 text-white shadow-lg border border-blue-400/50">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 animate-pulse" />
+                <div className="text-sm">
+                  <div className="font-medium">AI Actions Available</div>
+                  <div className="text-xs opacity-90">Shift+Click for unified menu</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Canvas Instructions - Collapsible */}
         {isControlsMinimized ? (
           <Button
@@ -747,7 +834,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <div>• Mouse wheel or trackpad scroll to zoom</div>
               <div>• Pinch with two fingers to zoom on trackpad</div>
               <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
-              <div>• <strong>Shift+click</strong> to open/close context menu</div>
+              <div>• <strong>Shift+click</strong> to open unified actions menu</div>
+              <div>• <strong>Shift+click on highlighted patients</strong> for AI spells</div>
               <div>• Alt+click and drag also works for panning</div>
             </div>
           </div>
