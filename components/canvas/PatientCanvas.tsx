@@ -304,18 +304,30 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   }, [onClearHighlights])
 
   const handleAIResponse = useCallback((response: AIResponse, spellPosition: { x: number; y: number }) => {
+    console.log('🎯 handleAIResponse called with:', { response, spellPosition, pan, zoom })
     const responseId = `response-${Date.now()}`
     
     // Find an empty space on the canvas for the response card
     const findEmptyPosition = (): { x: number; y: number } => {
       const canvasRect = canvasRef.current?.getBoundingClientRect()
-      if (!canvasRect) return { x: 500, y: 300 } // Default position
+      if (!canvasRect) {
+        console.log('⚠️ No canvas rect, using default position')
+        return { x: 500, y: 300 } // Default position
+      }
       
-      // Calculate canvas coordinates
-      const canvasX = (spellPosition.x - pan.x) / zoom
-      const canvasY = (spellPosition.y - pan.y) / zoom
+      console.log('📐 Canvas rect:', canvasRect)
+      console.log('📍 Spell position (screen coords):', spellPosition)
+      console.log('🔍 Current pan/zoom:', { pan, zoom })
       
-      // Look for empty space in a spiral pattern
+      // Convert screen coordinates to canvas coordinates
+      // The spell position is in screen coordinates relative to the viewport
+      // We need to convert it to canvas coordinates accounting for pan and zoom
+      const canvasX = (spellPosition.x - canvasRect.left - pan.x) / zoom
+      const canvasY = (spellPosition.y - canvasRect.top - pan.y) / zoom
+      
+      console.log('🎯 Converted canvas coordinates:', { canvasX, canvasY })
+      
+      // Look for empty space in a spiral pattern around the spell position
       const spiralPositions = [
         { x: canvasX + 400, y: canvasY },
         { x: canvasX + 300, y: canvasY + 300 },
@@ -325,6 +337,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         { x: canvasX - 200, y: canvasY - 200 },
         { x: canvasX + 600, y: canvasY - 100 },
       ]
+      
+      console.log('🌀 Spiral positions to check:', spiralPositions)
       
       // Find first position that doesn't overlap with existing cards
       for (const pos of spiralPositions) {
@@ -336,54 +350,79 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         })
         
         if (!overlaps) {
+          console.log('✅ Found empty position:', pos)
           return pos
         }
       }
       
       // Fallback to a calculated position
-      return { x: canvasX + 400, y: canvasY + 200 }
+      const fallbackPos = { x: canvasX + 400, y: canvasY + 200 }
+      console.log('🔄 Using fallback position:', fallbackPos)
+      return fallbackPos
     }
     
     const emptyPosition = findEmptyPosition()
     
-    // Smooth pan to the new position
-    const targetPanX = emptyPosition.x * zoom - spellPosition.x + pan.x
-    const targetPanY = emptyPosition.y * zoom - spellPosition.y + pan.y
-    
-    // Animate the pan
-    const startPan = { ...pan }
-    const startTime = Date.now()
-    const duration = 1000 // 1000ms animation
-    
-    const animatePan = () => {
-      const elapsed = Date.now() - startTime
-      const progress = Math.min(elapsed / duration, 1)
-      
-      // Easing function for smooth animation
-      const easeOut = 1 - Math.pow(1 - progress, 3)
-      
-      const newPanX = startPan.x + (targetPanX - startPan.x) * easeOut
-      const newPanY = startPan.y + (targetPanY - startPan.y) * easeOut
-      
-      setPan({ x: newPanX, y: newPanY })
-      
-      if (progress < 1) {
-        requestAnimationFrame(animatePan)
-      }
+    // Create the response card immediately without complex panning
+    console.log('🃏 Creating AI response card at position:', emptyPosition)
+    const newResponseCard: AIResponseCardState = {
+      id: responseId,
+      response,
+      position: emptyPosition
     }
     
-    requestAnimationFrame(animatePan)
+    setAiResponseCards(prev => {
+      const newCards = [...prev, newResponseCard]
+      console.log('📋 Updated AI response cards:', newCards)
+      return newCards
+    })
     
-    // Create the response card after a short delay to allow panning to start
-    setTimeout(() => {
-      const newResponseCard: AIResponseCardState = {
-        id: responseId,
-        response,
-        position: emptyPosition
-      }
+    // Optional: Simple pan to show the card (without complex animation)
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (canvasRect) {
+      // Calculate where the card will appear on screen
+      const screenX = emptyPosition.x * zoom + pan.x + canvasRect.left
+      const screenY = emptyPosition.y * zoom + pan.y + canvasRect.top
       
-      setAiResponseCards(prev => [...prev, newResponseCard])
-    }, 300) // Delay to start panning first
+      // If the card is outside the viewport, pan to show it
+      const isOutsideViewport = screenX < 0 || screenY < 0 || 
+                               screenX > canvasRect.width || screenY > canvasRect.height
+      
+      if (isOutsideViewport) {
+        console.log('📱 Card is outside viewport, panning to show it')
+        // Pan to center the card in the viewport
+        const targetPanX = canvasRect.width / 2 - emptyPosition.x * zoom
+        const targetPanY = canvasRect.height / 2 - emptyPosition.y * zoom
+        
+        // Smooth pan animation
+        const startPan = { ...pan }
+        const startTime = Date.now()
+        const duration = 800 // Shorter animation
+        
+        const animatePan = () => {
+          const elapsed = Date.now() - startTime
+          const progress = Math.min(elapsed / duration, 1)
+          
+          // Easing function for smooth animation
+          const easeOut = 1 - Math.pow(1 - progress, 3)
+          
+          const newPanX = startPan.x + (targetPanX - startPan.x) * easeOut
+          const newPanY = startPan.y + (targetPanY - startPan.y) * easeOut
+          
+          setPan({ x: newPanX, y: newPanY })
+          
+          if (progress < 1) {
+            requestAnimationFrame(animatePan)
+          } else {
+            console.log('✅ Pan animation completed')
+          }
+        }
+        
+        requestAnimationFrame(animatePan)
+      } else {
+        console.log('👁️ Card is already visible in viewport')
+      }
+    }
     
   }, [pan, zoom, aiResponseCards])
 
@@ -813,15 +852,23 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           })}
         </div>
 
-        {/* AI Response Cards */}
-        {aiResponseCards.map((responseCard) => (
-          <AIResponseCard
-            key={responseCard.id}
-            response={responseCard.response}
-            position={responseCard.position}
-            onClose={() => handleCloseAIResponse(responseCard.id)}
-          />
-        ))}
+        {/* AI Response Cards - Positioned within the transformed canvas */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          {aiResponseCards.map((responseCard) => (
+            <AIResponseCard
+              key={responseCard.id}
+              response={responseCard.response}
+              position={responseCard.position}
+              onClose={() => handleCloseAIResponse(responseCard.id)}
+            />
+          ))}
+        </div>
 
 
         {/* Canvas Instructions - Collapsible */}

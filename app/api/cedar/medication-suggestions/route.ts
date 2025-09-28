@@ -30,26 +30,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Enhanced system prompt for medication suggestions
-    const systemPrompt = `You are a medical AI assistant specializing in medication alternatives and insurance coverage analysis. Your task is to provide evidence-based medication alternatives with detailed analysis.
+    // Enhanced system prompt for structured, summarized responses
+    const systemPrompt = `You are a medical AI assistant providing concise, structured clinical insights. Your responses must be clear, actionable summaries suitable for busy healthcare providers.
 
-When analyzing medication queries, consider:
-1. Patient conditions and comorbidities
-2. Current medication interactions
-3. Insurance coverage patterns (based on real-world data)
-4. Effectiveness comparisons from clinical trials
-5. Side effect profiles and tolerability
-6. Cost-effectiveness considerations
+RESPONSE FORMAT REQUIREMENTS:
+- Start with a brief 2-3 sentence executive summary
+- Provide 2-3 key findings or recommendations as bullet points
+- Include 1-2 specific actionable next steps
+- Keep total response under 200 words
+- Use clear, professional medical terminology
+- Focus on the most clinically relevant information
 
-Always provide:
-- Specific medication names (generic and brand when relevant)
-- Evidence-based reasoning for recommendations
-- Realistic insurance coverage percentages
-- Clinical effectiveness comparisons
-- Common side effects and monitoring requirements
-- Practical recommendations for implementation
+For medication analysis: Focus on top alternatives, coverage, and key safety considerations.
+For patient analysis: Highlight risk factors, care gaps, and priority interventions.
+For risk assessment: Identify primary risks and mitigation strategies.
+For treatment plans: Outline key treatment modifications and monitoring needs.
 
-Format your response as structured analysis with clear alternatives and actionable recommendations.`
+Always prioritize clinical relevance and actionability over comprehensive detail.`
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Using GPT-4 for better medical reasoning
@@ -121,30 +118,21 @@ Format your response as structured analysis with clear alternatives and actionab
       
       // Fallback if parsing fails
       if (structuredResponse.alternatives.length === 0) {
-        structuredResponse.alternatives = [
-          {
-            medication: "Metformin XR",
-            reason: "Extended-release formulation with better gastrointestinal tolerance",
-            coverage: "Covered by 95% of insurance plans",
-            effectiveness: "Similar efficacy to immediate-release metformin",
-            sideEffects: "Reduced gastrointestinal discomfort"
-          },
-          {
-            medication: "Semaglutide",
-            reason: "Superior glucose control and weight loss benefits",
-            coverage: "Covered by 78% of insurance plans",
-            effectiveness: "Superior HbA1c reduction vs. metformin alone",
-            sideEffects: "Nausea, vomiting (typically temporary)"
-          }
-        ]
+        structuredResponse.alternatives = []
       }
       
       if (structuredResponse.recommendations.length === 0) {
-        structuredResponse.recommendations = [
-          "Verify insurance coverage before prescribing",
-          "Monitor for side effects during transition",
-          "Schedule follow-up in 4-6 weeks",
-          "Consider patient preferences and lifestyle factors"
+        // Extract recommendations from the text
+        const recLines = aiResponse.split('\n').filter(line => 
+          line.trim().toLowerCase().includes('recommend') || 
+          line.trim().toLowerCase().includes('consider') ||
+          line.trim().toLowerCase().includes('monitor') ||
+          line.trim().toLowerCase().includes('follow')
+        ).slice(0, 3)
+        
+        structuredResponse.recommendations = recLines.length > 0 ? recLines : [
+          "Review current treatment plan",
+          "Schedule follow-up assessment"
         ]
       }
       
