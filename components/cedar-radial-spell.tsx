@@ -245,7 +245,8 @@ Provide evidence-based medication alternatives with insurance coverage informati
             }
           ],
           analysis: data.rawAnalysis || "Based on current research and patient profiles...",
-          recommendations: ["Verify insurance coverage", "Monitor side effects"]
+          recommendations: ["Verify insurance coverage", "Monitor side effects"],
+          type: 'medication'
         }
         
         onAIResponse(aiResponse, position)
@@ -260,38 +261,194 @@ Provide evidence-based medication alternatives with insurance coverage informati
 
   const handlePatientAnalysis = async () => {
     setIsLoading(true)
-    // Implementation for patient analysis
-    setTimeout(() => {
+    try {
+      const highlightedPatientData = context.patients.filter(p => 
+        context.highlightedPatients.includes(p.id)
+      )
+      
+      const prompt = `Create a comprehensive patient analysis summary for these patients:
+${highlightedPatientData.map(patient => `
+- ${patient.name} (${patient.age} years old)
+- Conditions: ${patient.conditions.join(', ')}
+- Current medications: ${patient.meds.join(', ')}
+- Lab values: ${patient.labs.map(lab => `${lab.name}: ${lab.value} (${lab.status})`).join(', ')}
+- Risk score: ${patient.riskScore}
+`).join('\n')}
+
+Provide a professional, concise analysis focusing on key health patterns, medication effectiveness, and care recommendations.`
+
+      const response = await fetch('/api/cedar/medication-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt,
+          context: { 
+            type: 'patient-analysis',
+            highlightedPatients: context.highlightedPatients,
+            researchUpdate: context.researchUpdate?.id
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const aiResponse: AIResponse = {
+          alternatives: [],
+          analysis: data.rawAnalysis || "Patient analysis completed successfully.",
+          recommendations: ["Schedule follow-up appointments", "Monitor lab values", "Review medication adherence"],
+          type: 'patient-analysis'
+        }
+        
+        onAIResponse(aiResponse, position)
+      }
+    } catch (error) {
+      console.error('Patient analysis error:', error)
+    } finally {
       setIsLoading(false)
       setIsVisible(false)
-    }, 1000)
+    }
   }
 
   const handleRiskAssessment = async () => {
     setIsLoading(true)
-    // Implementation for risk assessment
-    setTimeout(() => {
+    try {
+      const highlightedPatientData = context.patients.filter(p => 
+        context.highlightedPatients.includes(p.id)
+      )
+      
+      const prompt = `Perform a comprehensive risk assessment for these patients:
+${highlightedPatientData.map(patient => `
+- ${patient.name} (${patient.age} years old)
+- Conditions: ${patient.conditions.join(', ')}
+- Current medications: ${patient.meds.join(', ')}
+- Lab values: ${patient.labs.map(lab => `${lab.name}: ${lab.value} (${lab.status})`).join(', ')}
+- Risk score: ${patient.riskScore}
+`).join('\n')}
+
+Identify key risk factors, potential complications, and preventive measures.`
+
+      const response = await fetch('/api/cedar/medication-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt,
+          context: { 
+            type: 'risk-assessment',
+            highlightedPatients: context.highlightedPatients,
+            researchUpdate: context.researchUpdate?.id
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const aiResponse: AIResponse = {
+          alternatives: [],
+          analysis: data.rawAnalysis || "Risk assessment completed successfully.",
+          recommendations: ["Implement monitoring protocols", "Consider preventive interventions", "Schedule regular checkups"],
+          type: 'risk-assessment'
+        }
+        
+        onAIResponse(aiResponse, position)
+      }
+    } catch (error) {
+      console.error('Risk assessment error:', error)
+    } finally {
       setIsLoading(false)
       setIsVisible(false)
-    }, 1000)
+    }
   }
 
   const handleTreatmentPlan = async () => {
     setIsLoading(true)
-    // Implementation for treatment plan
-    setTimeout(() => {
+    try {
+      const highlightedPatientData = context.patients.filter(p => 
+        context.highlightedPatients.includes(p.id)
+      )
+      
+      const prompt = `Develop comprehensive treatment plans for these patients:
+${highlightedPatientData.map(patient => `
+- ${patient.name} (${patient.age} years old)
+- Conditions: ${patient.conditions.join(', ')}
+- Current medications: ${patient.meds.join(', ')}
+- Lab values: ${patient.labs.map(lab => `${lab.name}: ${lab.value} (${lab.status})`).join(', ')}
+- Risk score: ${patient.riskScore}
+`).join('\n')}
+
+Create detailed treatment plans including medication adjustments, lifestyle recommendations, and follow-up schedules.`
+
+      const response = await fetch('/api/cedar/medication-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt,
+          context: { 
+            type: 'treatment-plan',
+            highlightedPatients: context.highlightedPatients,
+            researchUpdate: context.researchUpdate?.id
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const aiResponse: AIResponse = {
+          alternatives: [],
+          analysis: data.rawAnalysis || "Treatment plan developed successfully.",
+          recommendations: ["Begin medication adjustments", "Implement lifestyle changes", "Schedule monitoring appointments"],
+          type: 'treatment-plan'
+        }
+        
+        onAIResponse(aiResponse, position)
+      }
+    } catch (error) {
+      console.error('Treatment plan error:', error)
+    } finally {
       setIsLoading(false)
       setIsVisible(false)
-    }, 1000)
+    }
   }
 
   const handleResearchInsights = async () => {
     setIsLoading(true)
-    // Implementation for research insights
-    setTimeout(() => {
+    try {
+      const prompt = `Analyze this research update and provide key insights:
+Title: ${context.researchUpdate?.title}
+Summary: ${context.researchUpdate?.summary}
+Category: ${context.researchUpdate?.category}
+
+Provide a concise analysis of the clinical implications, patient impact, and actionable insights.`
+
+      const response = await fetch('/api/cedar/medication-suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          prompt,
+          context: { 
+            type: 'research-insights',
+            highlightedPatients: context.highlightedPatients,
+            researchUpdate: context.researchUpdate?.id
+          }
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        const aiResponse: AIResponse = {
+          alternatives: [],
+          analysis: data.rawAnalysis || "Research analysis completed successfully.",
+          recommendations: ["Review current protocols", "Consider guideline updates", "Assess patient impact"],
+          type: 'research-insights'
+        }
+        
+        onAIResponse(aiResponse, position)
+      }
+    } catch (error) {
+      console.error('Research insights error:', error)
+    } finally {
       setIsLoading(false)
       setIsVisible(false)
-    }, 1000)
+    }
   }
 
   // Close menu when clicking outside
@@ -308,23 +465,7 @@ Provide evidence-based medication alternatives with insurance coverage informati
     }
   }, [isVisible])
 
-  // Debug: Always show a test button to verify the component is working
-  if (!isVisible) {
-    return (
-      <div className="fixed top-4 left-4 z-50">
-        <Button
-          onClick={() => {
-            console.log('Test button clicked - opening radial menu')
-            setPosition({ x: 300, y: 300 })
-            setIsVisible(true)
-          }}
-          className="bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1"
-        >
-          Test Radial Menu
-        </Button>
-      </div>
-    )
-  }
+  if (!isVisible) return null
 
   const radius = 120
   const angleStep = (2 * Math.PI) / radialActions.length
@@ -338,6 +479,15 @@ Provide evidence-based medication alternatives with insurance coverage informati
         top: position.y - radius - 40,
       }}
     >
+      {/* Background Circle with Opacity */}
+      <div 
+        className="absolute w-80 h-80 rounded-full bg-blue-500/20 backdrop-blur-sm border-2 border-blue-300/30 shadow-2xl"
+        style={{
+          left: -80,
+          top: -80,
+        }}
+      />
+      
       {/* Center Circle */}
       <div className="relative">
         <div className="w-20 h-20 bg-white border-4 border-blue-200 rounded-full shadow-2xl flex items-center justify-center">

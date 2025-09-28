@@ -35,7 +35,7 @@ import {
 } from "lucide-react"
 import Draggable from "react-draggable"
 import { CedarRadialSpell } from "@/components/cedar-radial-spell"
-import { AIResponseBox } from "@/components/cedar-ai-response-box"
+import { AIResponseCard } from "@/components/cedar-ai-response-card"
 import { ConnectionManager } from "@/components/cedar-connection-line"
 
 type PatientLab = {
@@ -69,9 +69,10 @@ type AIResponse = {
   }>
   analysis: string
   recommendations: string[]
+  type?: 'medication' | 'patient-analysis' | 'risk-assessment' | 'treatment-plan' | 'research-insights'
 }
 
-type AIResponseBoxState = {
+type AIResponseCardState = {
   id: string
   response: AIResponse
   position: { x: number; y: number }
@@ -197,8 +198,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   // Canvas controls state
   const [isControlsMinimized, setIsControlsMinimized] = useState(false)
   
-  // AI Response Boxes state
-  const [aiResponseBoxes, setAiResponseBoxes] = useState<AIResponseBoxState[]>([])
+  // AI Response Cards state
+  const [aiResponseCards, setAiResponseCards] = useState<AIResponseCardState[]>([])
   const [connections, setConnections] = useState<Array<{
     id: string
     from: { x: number; y: number }
@@ -309,44 +310,115 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     setContextMenu(null)
   }, [onClearHighlights])
 
-  const handleAIResponse = useCallback((response: AIResponse, position: { x: number; y: number }) => {
+  const handleAIResponse = useCallback((response: AIResponse, spellPosition: { x: number; y: number }) => {
     const responseId = `response-${Date.now()}`
-    const newResponseBox: AIResponseBoxState = {
-      id: responseId,
-      response,
-      position: {
-        x: position.x + 50, // Offset slightly from spell position
-        y: position.y + 50
+    
+    // Find an empty space on the canvas for the response card
+    const findEmptyPosition = (): { x: number; y: number } => {
+      const canvasRect = canvasRef.current?.getBoundingClientRect()
+      if (!canvasRect) return { x: spellPosition.x + 200, y: spellPosition.y + 100 }
+      
+      // Calculate canvas coordinates
+      const canvasX = (spellPosition.x - pan.x) / zoom
+      const canvasY = (spellPosition.y - pan.y) / zoom
+      
+      // Look for empty space in a spiral pattern
+      const spiralPositions = [
+        { x: canvasX + 300, y: canvasY },
+        { x: canvasX + 200, y: canvasY + 200 },
+        { x: canvasX - 200, y: canvasY + 100 },
+        { x: canvasX + 400, y: canvasY + 100 },
+        { x: canvasX + 100, y: canvasY - 200 },
+      ]
+      
+      // Find first position that doesn't overlap with existing cards
+      for (const pos of spiralPositions) {
+        const overlaps = aiResponseCards.some(card => {
+          const cardX = card.position.x
+          const cardY = card.position.y
+          const distance = Math.sqrt(Math.pow(pos.x - cardX, 2) + Math.pow(pos.y - cardY, 2))
+          return distance < 200 // Minimum distance between cards
+        })
+        
+        if (!overlaps) {
+          return pos
+        }
+      }
+      
+      // Fallback to a calculated position
+      return { x: canvasX + 250, y: canvasY + 150 }
+    }
+    
+    const emptyPosition = findEmptyPosition()
+    
+    // Smooth pan to the new position
+    const targetPanX = emptyPosition.x * zoom - spellPosition.x + pan.x
+    const targetPanY = emptyPosition.y * zoom - spellPosition.y + pan.y
+    
+    // Animate the pan
+    const startPan = { ...pan }
+    const startTime = Date.now()
+    const duration = 800 // 800ms animation
+    
+    const animatePan = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      // Easing function for smooth animation
+      const easeOut = 1 - Math.pow(1 - progress, 3)
+      
+      const newPanX = startPan.x + (targetPanX - startPan.x) * easeOut
+      const newPanY = startPan.y + (targetPanY - startPan.y) * easeOut
+      
+      setPan({ x: newPanX, y: newPanY })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animatePan)
       }
     }
     
-    setAiResponseBoxes(prev => [...prev, newResponseBox])
+    requestAnimationFrame(animatePan)
     
-    // Create connection from spell position to response box
-    const connectionId = `connection-${responseId}`
-    const newConnection = {
-      id: connectionId,
-      from: position,
-      to: newResponseBox.position,
-      isActive: true
-    }
-    
-    setConnections(prev => [...prev, newConnection])
-    
-    // Make connection inactive after animation
+    // Create the response card after a short delay to allow panning to start
     setTimeout(() => {
-      setConnections(prev => 
-        prev.map(conn => 
-          conn.id === connectionId 
-            ? { ...conn, isActive: false }
-            : conn
+      const newResponseCard: AIResponseCardState = {
+        id: responseId,
+        response,
+        position: emptyPosition
+      }
+      
+      setAiResponseCards(prev => [...prev, newResponseCard])
+      
+      // Create connection from spell position to response card
+      const connectionId = `connection-${responseId}`
+      const newConnection = {
+        id: connectionId,
+        from: {
+          x: (spellPosition.x - pan.x) / zoom,
+          y: (spellPosition.y - pan.y) / zoom
+        },
+        to: emptyPosition,
+        isActive: true
+      }
+      
+      setConnections(prev => [...prev, newConnection])
+      
+      // Make connection inactive after animation
+      setTimeout(() => {
+        setConnections(prev => 
+          prev.map(conn => 
+            conn.id === connectionId 
+              ? { ...conn, isActive: false }
+              : conn
+          )
         )
-      )
-    }, 3000)
-  }, [])
+      }, 3000)
+    }, 200) // Small delay to start panning first
+    
+  }, [pan, zoom, aiResponseCards])
 
   const handleCloseAIResponse = useCallback((responseId: string) => {
-    setAiResponseBoxes(prev => prev.filter(box => box.id !== responseId))
+    setAiResponseCards(prev => prev.filter(card => card.id !== responseId))
     setConnections(prev => prev.filter(conn => !conn.id.includes(responseId)))
   }, [])
 
@@ -772,13 +844,13 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           })}
         </div>
 
-        {/* AI Response Boxes */}
-        {aiResponseBoxes.map((responseBox) => (
-          <AIResponseBox
-            key={responseBox.id}
-            response={responseBox.response}
-            position={responseBox.position}
-            onClose={() => handleCloseAIResponse(responseBox.id)}
+        {/* AI Response Cards */}
+        {aiResponseCards.map((responseCard) => (
+          <AIResponseCard
+            key={responseCard.id}
+            response={responseCard.response}
+            position={responseCard.position}
+            onClose={() => handleCloseAIResponse(responseCard.id)}
           />
         ))}
 
