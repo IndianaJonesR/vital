@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useCallback, useEffect } from "react"
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -220,13 +220,30 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   const [promptCard, setPromptCard] = useState<{ position: { x: number; y: number } } | null>(null)
   const [isProcessingPrompt, setIsProcessingPrompt] = useState(false)
   
+  // Manual Notes state
+  const [notesCards, setNotesCards] = useState<Array<{
+    id: string
+    position: { x: number; y: number }
+    size: { width: number; height: number }
+    content: string
+  }>>([])
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  
   // Patient Groups state
   const [patientGroups, setPatientGroups] = useState<PatientGroup[]>([])
-  const [groupedPatients, setGroupedPatients] = useState<Set<string>>(new Set())
   const [patientGroupColors, setPatientGroupColors] = useState<Map<string, { ringColor: string; bgColor: string; groupName: string }>>(new Map())
   
   // Patient positions state - track current positions of all patients
   const [patientPositions, setPatientPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
+
+  // Layout constants for cards and groups
+  const CARD_WIDTH = 288
+  const CARD_HEIGHT = 384
+  const GROUP_PADDING = 32
+  const GROUP_LABEL_HEIGHT = 72
+
+  const groupDragStateRef = useRef<Map<string, { startGroupPosition: { x: number; y: number }; startPatientPositions: Map<string, { x: number; y: number }> }>>(new Map())
+  const activeGroupDragsRef = useRef<Set<string>>(new Set())
   
   // Cursor position tracking
   const [lastCursorPosition, setLastCursorPosition] = useState<{ x: number; y: number }>({ x: 400, y: 300 })
@@ -570,11 +587,11 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         }
       ]
       
-      // Calculate new positions for each group with EXTREME spacing across the canvas
+      // Calculate new positions for each group with visible spacing at 30% zoom
       result.groupings.forEach((group: any, groupIndex: number) => {
         const groupsPerRow = Math.ceil(Math.sqrt(result.groupings.length))
-        const baseX = (groupIndex % groupsPerRow) * 2500 + 500 // MASSIVE spacing - 2500px apart
-        const baseY = Math.floor(groupIndex / groupsPerRow) * 2000 + 500 // MASSIVE spacing - 2000px apart
+        const baseX = (groupIndex % groupsPerRow) * 2500 + 2000 // Move 2000px to the right + original spacing (visible at 30% zoom)
+        const baseY = Math.floor(groupIndex / groupsPerRow) * 2000 + 2000 // Move 2000px down + original spacing
         
         console.log(`🏗️ Group ${groupIndex} "${group.name}" base position:`, { baseX, baseY })
         
@@ -626,7 +643,6 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       setPatientPositions(newPositions)
       setPatientGroups(newGroups)
       setPatientGroupColors(newPatientColors)
-      setGroupedPatients(new Set(newPatientColors.keys()))
       
       console.log('📍 Updated patient positions:', Array.from(newPositions.entries()))
       console.log('🎨 Updated patient colors:', Array.from(newPatientColors.entries()))
@@ -720,57 +736,6 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     
     requestAnimationFrame(animateZoom)
   }, [zoom, pan])
-
-  // Handle group dragging - move all cards in a group together
-  const handleGroupDragStop = useCallback((groupId: string, newLabelPosition: { x: number; y: number }) => {
-    const group = patientGroups.find(g => g.id === groupId)
-    if (!group) return
-
-    // Calculate how much the label moved
-    const deltaX = newLabelPosition.x - group.position.x
-    const deltaY = newLabelPosition.y - group.position.y
-
-    console.log(`🏷️ Group "${group.name}" moved by:`, { deltaX, deltaY, from: group.position, to: newLabelPosition })
-
-    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
-      console.log('📍 No significant movement, skipping update')
-      return // No significant movement
-    }
-
-    // Create completely new Map to ensure React detects the change
-    const newPositions = new Map<string, { x: number; y: number }>()
-    
-    // Copy all existing positions
-    patientPositions.forEach((pos, id) => {
-      newPositions.set(id, { ...pos })
-    })
-    
-    // Update positions of all patients in this group
-    group.patientIds.forEach(patientId => {
-      const currentPos = newPositions.get(patientId)
-      if (currentPos) {
-        const newPos = {
-          x: currentPos.x + deltaX,
-          y: currentPos.y + deltaY
-        }
-        console.log(`📍 Moving patient ${patientId} from`, currentPos, 'to', newPos)
-        newPositions.set(patientId, newPos)
-      }
-    })
-
-    // Update all states in sequence with proper batching
-    setTimeout(() => {
-      // Update patient positions first
-      setPatientPositions(newPositions)
-      
-      // Update group position
-      setPatientGroups(prev => prev.map(g => 
-        g.id === groupId 
-          ? { ...g, position: newLabelPosition }
-          : g
-      ))
-    }, 0)
-  }, [patientGroups, patientPositions])
 
   const handleClickOutside = useCallback((e: React.MouseEvent) => {
     // Close menu when clicking on canvas (but not on menu itself)
@@ -887,15 +852,34 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       // Shift + C to open prompt card
       if (e.shiftKey && e.key.toLowerCase() === 'c' && !promptCard) {
         e.preventDefault()
-        console.log('🎯 Opening Vital.ai prompt card via Shift+C')
+        console.log('🎯 Opening Vital.AI prompt card via Shift+C')
         
         // Position the prompt card at the last cursor position (updated for larger card)
         const spawnPosition = {
-          x: lastCursorPosition.x - 192, // Offset to center the card on cursor (w-96 = 384px / 2 = 192)
-          y: lastCursorPosition.y - 120
+          x: lastCursorPosition.x - 240, // Offset to center the larger card on cursor
+          y: lastCursorPosition.y - 150
         }
         
         setPromptCard({ position: spawnPosition })
+      }
+      
+      // Shift + N to create manual note
+      if (e.shiftKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault()
+        console.log('📝 Creating manual note card via Shift+N')
+        
+        const newNote = {
+          id: `note-${Date.now()}`,
+          position: {
+            x: lastCursorPosition.x - 150, // Center the note card
+            y: lastCursorPosition.y - 100
+          },
+          size: { width: 300, height: 200 },
+          content: ''
+        }
+        
+        setNotesCards(prev => [...prev, newNote])
+        setEditingNoteId(newNote.id) // Start editing immediately
       }
     }
 
@@ -903,34 +887,360 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [promptCard, lastCursorPosition])
 
-  const getInitialPosition = (index: number) => {
-    // Arrange patients in a grid initially
-    const cols = Math.ceil(Math.sqrt(patients.length))
+  const getInitialPosition = useCallback((index: number) => {
+    const cols = Math.max(1, Math.ceil(Math.sqrt(patients.length)))
     const x = (index % cols) * 300 + 50
     const y = Math.floor(index / cols) * 400 + 50
     return { x, y }
-  }
+  }, [patients.length])
+
+  useEffect(() => {
+    setPatientPositions(prev => {
+      let changed = false
+      const next = new Map(prev)
+
+      patients.forEach((patient, index) => {
+        if (!next.has(patient.id)) {
+          next.set(patient.id, patient.position || getInitialPosition(index))
+          changed = true
+        }
+      })
+
+      return changed ? next : prev
+    })
+  }, [patients, getInitialPosition])
+
+  const getPatientPosition = useCallback((patientId: string, index?: number) => {
+    const tracked = patientPositions.get(patientId)
+    if (tracked) return tracked
+
+    const patientIndex = index ?? patients.findIndex(p => p.id === patientId)
+    const fallbackPatient = patients[patientIndex]
+    if (fallbackPatient?.position) {
+      return fallbackPatient.position
+    }
+
+    const initialIndex = patientIndex !== -1 && patientIndex !== undefined ? patientIndex : 0
+    return getInitialPosition(initialIndex)
+  }, [patientPositions, patients, getInitialPosition])
+
+  const groupedPatientsSet = useMemo(() => {
+    const set = new Set<string>()
+    patientGroups.forEach(group => {
+      group.patientIds.forEach(id => set.add(id))
+    })
+    return set
+  }, [patientGroups])
+
+  const computeGroupBoundingBox = useCallback((patientIds: string[]) => {
+    const positions = patientIds
+      .map((id, idx) => getPatientPosition(id, idx))
+      .filter((pos): pos is { x: number; y: number } => pos !== undefined && pos !== null)
+
+    if (positions.length === 0) {
+      return {
+        minX: 0,
+        minY: 0,
+        width: CARD_WIDTH + GROUP_PADDING * 2,
+        height: CARD_HEIGHT + GROUP_PADDING * 2,
+      }
+    }
+
+    const minX = Math.min(...positions.map(p => p.x))
+    const maxX = Math.max(...positions.map(p => p.x + CARD_WIDTH))
+    const minY = Math.min(...positions.map(p => p.y))
+    const maxY = Math.max(...positions.map(p => p.y + CARD_HEIGHT))
+
+    const width = maxX - minX + GROUP_PADDING * 2
+    const height = maxY - minY + GROUP_PADDING * 2
+
+    return { minX, minY, width, height }
+  }, [getPatientPosition])
+
+  // Handle group dragging - move all cards in a group together
+  const handleGroupDragStart = useCallback((group: PatientGroup) => {
+    const patientPositionsAtStart = new Map<string, { x: number; y: number }>()
+    group.patientIds.forEach(patientId => {
+      const current = patientPositions.get(patientId)
+      if (current) {
+        patientPositionsAtStart.set(patientId, { ...current })
+      } else {
+        const index = patients.findIndex(p => p.id === patientId)
+        patientPositionsAtStart.set(patientId, getPatientPosition(patientId, index))
+      }
+    })
+
+    groupDragStateRef.current.set(group.id, {
+      startGroupPosition: { ...group.position },
+      startPatientPositions: patientPositionsAtStart,
+    })
+    activeGroupDragsRef.current.add(group.id)
+  }, [patientPositions, patients, getPatientPosition])
+
+  const handleGroupDrag = useCallback((group: PatientGroup, deltaX: number, deltaY: number) => {
+    const dragState = groupDragStateRef.current.get(group.id)
+    if (!dragState) return
+
+    setPatientPositions(prev => {
+      const next = new Map(prev)
+
+      group.patientIds.forEach(patientId => {
+        const startPosition = dragState.startPatientPositions.get(patientId)
+        if (startPosition) {
+          next.set(patientId, {
+            x: startPosition.x + deltaX,
+            y: startPosition.y + deltaY,
+          })
+        }
+      })
+
+      return next
+    })
+  }, [])
+
+  const handleGroupDragEnd = useCallback((groupId: string, newPosition: { x: number; y: number }) => {
+    const dragState = groupDragStateRef.current.get(groupId)
+    const group = patientGroups.find(g => g.id === groupId)
+    if (!dragState || !group) return
+
+    const deltaX = newPosition.x - dragState.startGroupPosition.x
+    const deltaY = newPosition.y - dragState.startGroupPosition.y
+
+    setPatientPositions(prev => {
+      const next = new Map(prev)
+
+      group.patientIds.forEach(patientId => {
+        const startPosition = dragState.startPatientPositions.get(patientId)
+        if (startPosition) {
+          next.set(patientId, {
+            x: startPosition.x + deltaX,
+            y: startPosition.y + deltaY,
+          })
+        }
+      })
+
+      return next
+    })
+
+    setPatientGroups(prev => prev.map(g =>
+      g.id === groupId
+        ? { ...g, position: newPosition }
+        : g
+    ))
+
+    groupDragStateRef.current.delete(groupId)
+    activeGroupDragsRef.current.delete(groupId)
+  }, [patientGroups])
+
+  const renderPatientCard = useCallback((patient: PatientWithMeta, options?: { isGrouped?: boolean; groupColor?: { ringColor: string; bgColor: string; groupName: string }; showHoverEffect?: boolean }) => {
+    const { isGrouped = false, groupColor, showHoverEffect = true } = options || {}
+
+    const priorityConfig = getPriorityConfig(patient.priority)
+    const PriorityIcon = priorityConfig.icon
+
+    return (
+      <div
+        className={`bg-white border-2 rounded-xl shadow-lg transition-all duration-300 w-72 h-96 ${showHoverEffect ? 'hover:shadow-xl hover:scale-105' : ''} ${groupColor ? `ring-4 ${groupColor.ringColor} shadow-2xl border-current` : highlightedPatients.includes(patient.id)
+          ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/30 border-red-500`
+          : glowingPatients.includes(patient.id)
+          ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/50 animate-pulse border-red-500`
+          : "border-gray-200"}`}
+        style={{
+          position: 'relative',
+          zIndex: isGrouped ? 20 : 10,
+          pointerEvents: 'auto',
+          cursor: 'move'
+        }}
+      >
+        <CardHeader className="pb-3 pt-4 px-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
+              <CardTitle className="text-lg font-semibold text-gray-800">
+                {patient.name}
+              </CardTitle>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-gray-800">{patient.age}</div>
+              {highlightedPatients.includes(patient.id) && (
+                <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-pulse">
+                  🎯 MATCH
+                </div>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="px-4 pb-4 space-y-4">
+          <div className="space-y-1">
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Last seen:</span> {patient.lastVisit}
+            </div>
+            <div className="text-sm text-gray-600">
+              <span className="font-medium">Next Appointment:</span> 10/1/2025
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="h-4 w-4 text-gray-600" />
+              <span className="text-sm font-semibold text-gray-700">Conditions</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {patient.conditions.map((condition, idx) => (
+                <span
+                  key={idx}
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    condition.toLowerCase().includes('diabetes')
+                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      : condition.toLowerCase().includes('hypertension')
+                      ? 'bg-red-100 text-red-700 border border-red-200'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  {condition}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 bg-red-100 rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              </div>
+              <span className="text-sm font-semibold text-gray-700">Medications</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {patient.meds.map((med, idx) => (
+                <span
+                  key={idx}
+                  className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200"
+                >
+                  {med}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {patient.labs.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <TestTube className="h-4 w-4 text-gray-600" />
+                <span className="text-sm font-semibold text-gray-700">Labs</span>
+              </div>
+              <div className="space-y-2">
+                {patient.labs.slice(0, 2).map((lab, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 font-medium">{lab.name}:</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-gray-800">{lab.value}</span>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          lab.status === "high" || lab.status === "elevated"
+                            ? "bg-red-100 text-red-700 border border-red-200"
+                            : lab.status === "normal" ||
+                                lab.status === "controlled" ||
+                                lab.status === "therapeutic" ||
+                                lab.status === "good" ||
+                                lab.status === "stable"
+                              ? "bg-green-100 text-green-700 border border-green-200"
+                              : lab.status === "low"
+                                ? "bg-blue-100 text-blue-700 border border-blue-200"
+                                : "bg-yellow-100 text-yellow-700 border border-yellow-200"
+                        }`}
+                      >
+                        {lab.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </div>
+    )
+  }, [highlightedPatients, glowingPatients, patientGroupColors])
+
+  const renderGroupedPatient = useCallback((patient: PatientWithMeta) => {
+    const group = patientGroups.find(g => g.patientIds.includes(patient.id))
+    const groupColor = group ? patientGroupColors.get(patient.id) : undefined
+
+    return (
+      <div className="relative" style={{ cursor: 'move', zIndex: 1003 }}>
+        {renderPatientCard(patient, { isGrouped: true, groupColor })}
+      </div>
+    )
+  }, [patientGroups, patientGroupColors, renderPatientCard])
+
+  const getContentBounds = useCallback(() => {
+    const positionsArray = Array.from(patientPositions.values())
+    if (positionsArray.length === 0) {
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: CARD_WIDTH,
+        maxY: CARD_HEIGHT,
+      }
+    }
+
+    const minX = Math.min(...positionsArray.map(p => p.x))
+    const maxX = Math.max(...positionsArray.map(p => p.x + CARD_WIDTH))
+    const minY = Math.min(...positionsArray.map(p => p.y))
+    const maxY = Math.max(...positionsArray.map(p => p.y + CARD_HEIGHT))
+
+    return { minX, minY, maxX, maxY }
+  }, [patientPositions])
 
   const getDraggableBounds = useCallback(() => {
-    if (!canvasRef.current) return "parent"
-    
-    const rect = canvasRef.current.getBoundingClientRect()
-    // Pre-calculate common values for efficiency
-    const panXOverZoom = pan.x / zoom
-    const panYOverZoom = pan.y / zoom
-    const widthOverZoom = rect.width / zoom
-    const heightOverZoom = rect.height / zoom
-    
-    // Calculate bounds that account for zoom and pan
-    const bounds = {
-      left: -panXOverZoom,
-      top: -panYOverZoom,
-      right: widthOverZoom - panXOverZoom - 288, // 288 is new card width (w-72)
-      bottom: heightOverZoom - panYOverZoom - 384, // 384 is new card height (h-96)
+    const canvas = canvasRef.current
+    if (!canvas) return undefined
+
+    const rect = canvas.getBoundingClientRect()
+    const contentBounds = getContentBounds()
+
+    return {
+      left: -contentBounds.maxX,
+      top: -contentBounds.maxY,
+      right: rect.width / zoom,
+      bottom: rect.height / zoom,
     }
-    
-    return bounds
-  }, [zoom, pan])
+  }, [getContentBounds, zoom])
+
+  const renderUngroupedPatient = useCallback((patient: PatientWithMeta, index: number) => {
+    const position = getPatientPosition(patient.id, index)
+
+    return (
+      <Draggable
+        key={`patient-${patient.id}`}
+        position={position}
+        bounds={getDraggableBounds()}
+        cancel=".no-drag"
+        scale={zoom}
+        onDrag={(e, data) => {
+          setPatientPositions(prev => {
+            const next = new Map(prev)
+            next.set(patient.id, { x: data.x, y: data.y })
+            return next
+          })
+        }}
+        onStop={(e, data) => {
+          setPatientPositions(prev => {
+            const next = new Map(prev)
+            next.set(patient.id, { x: data.x, y: data.y })
+            return next
+          })
+        }}
+      >
+        <div className="absolute" style={{ zIndex: 10, cursor: 'move' }}>
+          {renderPatientCard(patient, { isGrouped: false })}
+        </div>
+      </Draggable>
+    )
+  }, [getPatientPosition, getDraggableBounds, zoom, renderPatientCard])
 
   return (
     <div className="flex-1 flex flex-col bg-background">
@@ -1044,44 +1354,6 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           onClearHighlights={handleClearHighlights}
         />
 
-        {/* Group Background Areas - Visual connection */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0'
-          }}
-        >
-          {patientGroups.map((group) => {
-            // Calculate bounding box for all cards in this group
-            const groupPatientPositions = group.patientIds
-              .map(id => patientPositions.get(id))
-              .filter(Boolean) as { x: number; y: number }[]
-            
-            if (groupPatientPositions.length === 0) return null
-            
-            const minX = Math.min(...groupPatientPositions.map(p => p.x)) - 20
-            const maxX = Math.max(...groupPatientPositions.map(p => p.x)) + 300 // Card width + padding
-            const minY = Math.min(...groupPatientPositions.map(p => p.y)) - 20
-            const maxY = Math.max(...groupPatientPositions.map(p => p.y)) + 420 // Card height + padding
-            
-            return (
-              <div
-                key={`group-bg-${group.id}`}
-                className={`absolute rounded-lg border border-dashed opacity-20 ${group.bgColor} ${group.ringColor.replace('ring-', 'border-')} pointer-events-none`}
-                style={{
-                  left: minX,
-                  top: minY,
-                  width: maxX - minX,
-                  height: maxY - minY,
-                  zIndex: 1, // Lower z-index to not interfere with cards
-                  pointerEvents: 'none'
-                }}
-              />
-            )
-          })}
-        </div>
-
         {/* Canvas Content */}
         <div 
           className="absolute inset-0"
@@ -1119,245 +1391,99 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             </div>
           )}
 
-          {!loading && !error && patients.map((patient, index) => {
-            const priorityConfig = getPriorityConfig(patient.priority)
-            const PriorityIcon = priorityConfig.icon
-            
-            // Use tracked position if available, otherwise use initial position
-            const trackedPosition = patientPositions.get(patient.id)
-            const initialPosition = patient.position || getInitialPosition(index)
-            
-            // Initialize position in state if not already tracked
-            if (!trackedPosition && !patientPositions.has(patient.id)) {
-              // Use setTimeout to avoid state updates during render
-              setTimeout(() => {
-                setPatientPositions(prev => {
-                  if (!prev.has(patient.id)) {
-                    const newPositions = new Map(prev)
-                    newPositions.set(patient.id, initialPosition)
-                    return newPositions
-                  }
-                  return prev
-                })
-              }, 0)
-            }
-            
-            const currentPosition = trackedPosition || initialPosition
-            
-            // Debug logging for position tracking
-            if (trackedPosition) {
-              console.log(`🔍 Patient ${patient.name} using tracked position:`, trackedPosition)
-            }
-            
-            // Check if this patient is in a group and get its colors
-            const patientGroupColor = patientGroupColors.get(patient.id)
-            const isGrouped = patientGroupColor !== undefined
+          {!loading && !error && (
+            <>
+              {patientGroups.map(group => {
+                const boundingBox = computeGroupBoundingBox(group.patientIds)
 
             return (
               <Draggable
-                key={`patient-${patient.id}`} // Stable key - don't remount on position updates
-                position={currentPosition} // Use controlled position instead of defaultPosition
+                    key={`group-${group.id}`}
+                    handle={`#group-handle-${group.id}`}
+                    position={group.position}
                 bounds={getDraggableBounds()}
-                cancel=".no-drag"
-                scale={zoom} // Scale drag sensitivity with zoom level
-                onStart={(e, data) => {
-                  console.log(`🎯 Started dragging ${patient.name} at zoom ${zoom}`)
-                  // Return void to allow drag
-                }}
+                    scale={zoom}
+                    onStart={() => handleGroupDragStart(group)}
                 onDrag={(e, data) => {
-                  // Update position in real-time for smooth dragging
-                  const newPositions = new Map(patientPositions)
-                  newPositions.set(patient.id, { x: data.x, y: data.y })
-                  setPatientPositions(newPositions)
+                      const state = groupDragStateRef.current.get(group.id)
+                      if (!state) return
+
+                      const deltaX = data.x - state.startGroupPosition.x
+                      const deltaY = data.y - state.startGroupPosition.y
+                      handleGroupDrag(group, deltaX, deltaY)
                 }}
                 onStop={(e, data) => {
-                  // Final position update when user finishes dragging
-                  console.log(`📍 Manual drag completed for ${patient.name}:`, { x: data.x, y: data.y })
-                  const newPositions = new Map(patientPositions)
-                  newPositions.set(patient.id, { x: data.x, y: data.y })
-                  setPatientPositions(newPositions)
-                }}
-              >
-                <div className="absolute" style={{ zIndex: isGrouped ? 20 : 10, cursor: 'move' }}>
-                  <Card
-                    className={`bg-white border-2 rounded-xl shadow-lg transition-all duration-300 w-72 h-96 cursor-move overflow-hidden group pointer-events-auto ${
-                      // Group highlighting takes priority
-                      isGrouped
-                        ? `ring-4 ${patientGroupColor.ringColor} shadow-2xl border-current hover:scale-105`
-                        : highlightedPatients.includes(patient.id)
-                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/30 border-red-500`
-                        : glowingPatients.includes(patient.id)
-                        ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/50 animate-pulse border-red-500`
-                        : "border-gray-200 hover:shadow-xl hover:scale-105"
-                    }`}
-                    style={{ 
-                      position: 'relative',
-                      zIndex: isGrouped ? 20 : 10,
-                      pointerEvents: 'auto',
-                      cursor: 'move' // Explicit cursor style to override parent
+                      handleGroupDragEnd(group.id, { x: data.x, y: data.y })
                     }}
                   >
-                    {/* Header with name and age */}
-                    <CardHeader className="pb-3 pt-4 px-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 text-blue-600" />
-                          </div>
-                          <CardTitle className="text-lg font-semibold text-gray-800">
-                            {patient.name}
-                          </CardTitle>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold text-gray-800">{patient.age}</div>
-                          {highlightedPatients.includes(patient.id) && (
-                            <div className="text-xs bg-red-500 text-white px-2 py-1 rounded-full animate-pulse">
-                              🎯 MATCH
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </CardHeader>
+                    <div className="absolute" style={{ pointerEvents: 'none', zIndex: 1000 }}>
+                      <div
+                    style={{ 
+                          position: 'absolute',
+                          left: boundingBox.minX - group.position.x - GROUP_PADDING,
+                          top: boundingBox.minY - group.position.y - GROUP_PADDING,
+                          width: boundingBox.width,
+                          height: boundingBox.height,
+                          background: 'rgba(59, 130, 246, 0.15)',
+                          border: '2px solid rgba(59, 130, 246, 0.6)',
+                          borderRadius: '16px',
+                          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                          zIndex: 999,
+                        }}
+                      />
 
-                    <CardContent className="px-4 pb-4 space-y-4">
-                      {/* Last seen and Next appointment */}
-                      <div className="space-y-1">
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">Last seen:</span> {patient.lastVisit}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          <span className="font-medium">Next Appointment:</span> 10/1/2025
-                        </div>
-                      </div>
-
-                      {/* Conditions */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <Shield className="h-4 w-4 text-gray-600" />
-                          <span className="text-sm font-semibold text-gray-700">Conditions</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {patient.conditions.map((condition, idx) => (
-                            <span
-                              key={idx}
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                condition.toLowerCase().includes('diabetes')
-                                  ? 'bg-blue-100 text-blue-700 border border-blue-200'
-                                  : condition.toLowerCase().includes('hypertension')
-                                  ? 'bg-red-100 text-red-700 border border-red-200'
-                                  : 'bg-gray-100 text-gray-700 border border-gray-200'
-                              }`}
-                            >
-                              {condition}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Medications */}
-                      <div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="w-4 h-4 bg-red-100 rounded-full flex items-center justify-center">
-                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                      <div
+                        id={`group-handle-${group.id}`}
+                        className={`absolute left-0 -top-${GROUP_LABEL_HEIGHT / 2} rounded-lg border-2 px-4 py-3 shadow-2xl cursor-move ${group.bgColor} ${group.textColor} border-current backdrop-blur-sm hover:shadow-2xl transition-shadow duration-200`}
+                        style={{ minWidth: '200px', pointerEvents: 'auto', zIndex: 1001 }}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-3 h-3 rounded-full ${group.ringColor.replace('ring-', 'bg-')} animate-pulse`}></div>
+                          <h3 className="font-semibold text-sm">{group.name}</h3>
+                          <Badge variant="outline" className="text-xs ml-auto bg-yellow-100 text-yellow-800 border-yellow-300">
+                            ✨ {group.patientIds.length} patients
+                          </Badge>
                           </div>
-                          <span className="text-sm font-semibold text-gray-700">Medications</span>
+                        <p className="text-xs opacity-80 mb-1">{group.description}</p>
+                        <p className="text-xs opacity-60 italic">🔗 Drag to move entire group • 🤖 AI Generated</p>
                         </div>
-                        <div className="flex flex-wrap gap-2">
-                          {patient.meds.map((med, idx) => (
-                            <span
-                              key={idx}
-                              className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 border border-blue-200"
-                            >
-                              {med}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
 
-                      {/* Labs */}
-                      {patient.labs.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <TestTube className="h-4 w-4 text-gray-600" />
-                            <span className="text-sm font-semibold text-gray-700">Labs</span>
-                          </div>
-                          <div className="space-y-2">
-                            {patient.labs.slice(0, 2).map((lab, idx) => (
-                              <div key={idx} className="flex items-center justify-between">
-                                <span className="text-sm text-gray-600 font-medium">{lab.name}:</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-bold text-gray-800">{lab.value}</span>
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      lab.status === "high" || lab.status === "elevated"
-                                        ? "bg-red-100 text-red-700 border border-red-200"
-                                        : lab.status === "normal" ||
-                                            lab.status === "controlled" ||
-                                            lab.status === "therapeutic" ||
-                                            lab.status === "good" ||
-                                            lab.status === "stable"
-                                          ? "bg-green-100 text-green-700 border border-green-200"
-                                          : lab.status === "low"
-                                            ? "bg-blue-100 text-blue-700 border border-blue-200"
-                                            : "bg-yellow-100 text-yellow-700 border border-yellow-200"
-                                    }`}
-                                  >
-                                    {lab.status}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                      {group.patientIds.map(patientId => {
+                        const patient = patients.find(p => p.id === patientId)
+                        if (!patient) return null
+
+                        const position = getPatientPosition(patientId)
+                        const offsetX = (position.x - boundingBox.minX) + GROUP_PADDING
+                        const offsetY = (position.y - boundingBox.minY) + GROUP_PADDING
+
+                        return (
+                          <div
+                            key={`grouped-patient-${patientId}`}
+                            style={{
+                              position: 'absolute',
+                              left: offsetX,
+                              top: offsetY,
+                              pointerEvents: 'auto',
+                              zIndex: 1002
+                            }}
+                          >
+                            {renderGroupedPatient(patient)}
                         </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        )
+                      })}
                 </div>
               </Draggable>
             )
           })}
+
+              {patients
+                .filter(patient => !groupedPatientsSet.has(patient.id))
+                .map((patient, index) => renderUngroupedPatient(patient, index))}
+            </>
+          )}
         </div>
 
 
-        {/* Group Label Cards - Draggable within the transformed canvas */}
-        <div 
-          className="absolute inset-0"
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-            transformOrigin: '0 0'
-          }}
-        >
-          {patientGroups.map((group) => (
-            <Draggable
-              key={`group-${group.id}`} // Stable key - don't remount on position updates
-              position={group.position}
-              bounds={getDraggableBounds()}
-              onStop={(e, data) => {
-                console.log(`🎯 Group label drag stopped at:`, { x: data.x, y: data.y })
-                handleGroupDragStop(group.id, { x: data.x, y: data.y })
-              }}
-            >
-              <div className="absolute z-30">
-                <div
-                  className={`rounded-lg border-2 px-4 py-3 shadow-xl cursor-move ${group.bgColor} ${group.textColor} border-current backdrop-blur-sm hover:shadow-2xl transition-shadow duration-200`}
-                  style={{
-                    minWidth: '200px'
-                  }}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-3 h-3 rounded-full ${group.ringColor.replace('ring-', 'bg-')}`}></div>
-                    <h3 className="font-semibold text-sm">{group.name}</h3>
-                    <Badge variant="outline" className="text-xs ml-auto">
-                      {group.patientIds.length} patients
-                    </Badge>
-                  </div>
-                  <p className="text-xs opacity-80 mb-1">{group.description}</p>
-                  <p className="text-xs opacity-60 italic">🔗 Drag to move entire group</p>
-                </div>
-              </div>
-            </Draggable>
-          ))}
-        </div>
 
         {/* AI Response Cards - Positioned within the transformed canvas */}
         <div 
@@ -1409,12 +1535,95 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <div>• Pinch with two fingers to zoom on trackpad</div>
               <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
               <div>• <strong>Shift+click</strong> to open radial spell menu</div>
-              <div>• <strong>Shift+C</strong> to open Vital.ai prompt for card grouping</div>
+              <div>• <strong>Shift+C</strong> to open Vital.AI prompt for card grouping</div>
+              <div>• <strong>Shift+N</strong> to create manual note card</div>
               <div>• <strong>Radial menu</strong> shows context-aware AI actions</div>
               <div>• Alt+click and drag also works for panning</div>
             </div>
           </div>
         )}
+
+        {/* Manual Notes Cards - Positioned within the transformed canvas */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          {notesCards.map((noteCard) => (
+            <Draggable
+              key={noteCard.id}
+              position={noteCard.position}
+              bounds={getDraggableBounds()}
+              scale={zoom}
+              onStop={(e, data) => {
+                setNotesCards(prev => prev.map(note =>
+                  note.id === noteCard.id
+                    ? { ...note, position: { x: data.x, y: data.y } }
+                    : note
+                ))
+              }}
+            >
+              <div className="absolute" style={{ zIndex: 500 }}>
+                <div
+                  className="bg-yellow-50 border-2 border-yellow-300 rounded-lg shadow-lg resize overflow-hidden"
+                  style={{
+                    width: noteCard.size.width,
+                    height: noteCard.size.height,
+                    minWidth: '200px',
+                    minHeight: '150px',
+                    maxWidth: '600px',
+                    maxHeight: '400px'
+                  }}
+                >
+                  <div className="bg-yellow-200 px-3 py-2 border-b border-yellow-300 flex items-center justify-between cursor-move">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                      <span className="text-sm font-medium text-yellow-800">📝 Manual Note</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setNotesCards(prev => prev.filter(note => note.id !== noteCard.id))
+                        setEditingNoteId(null)
+                      }}
+                      className="text-yellow-600 hover:text-yellow-800 transition-colors"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="p-3 h-full">
+                    {editingNoteId === noteCard.id ? (
+                      <textarea
+                        value={noteCard.content}
+                        onChange={(e) => {
+                          setNotesCards(prev => prev.map(note =>
+                            note.id === noteCard.id
+                              ? { ...note, content: e.target.value }
+                              : note
+                          ))
+                        }}
+                        onBlur={() => setEditingNoteId(null)}
+                        autoFocus
+                        placeholder="Type your note here..."
+                        className="w-full h-full resize-none border-none outline-none bg-transparent text-sm text-gray-700 placeholder-gray-400"
+                        style={{ height: 'calc(100% - 2rem)' }}
+                      />
+                    ) : (
+                      <div
+                        onClick={() => setEditingNoteId(noteCard.id)}
+                        className="w-full h-full cursor-text text-sm text-gray-700 whitespace-pre-wrap"
+                        style={{ height: 'calc(100% - 2rem)' }}
+                      >
+                        {noteCard.content || 'Click to add note...'}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Draggable>
+          ))}
+        </div>
 
         {/* Vital.ai Prompt Card - Positioned within the transformed canvas */}
         {promptCard && (

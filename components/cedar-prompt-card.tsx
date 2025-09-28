@@ -69,35 +69,35 @@ export function CedarPromptCard({
       handle=".drag-handle"
     >
       <div className="absolute z-50">
-        <Card className="bg-white/95 backdrop-blur-md border-2 border-gray-200/80 shadow-2xl w-96 animate-in fade-in-0 zoom-in-95 duration-200">
-          <CardContent className="p-4">
+        <Card className="bg-white/95 backdrop-blur-md border-2 border-gray-200/80 shadow-2xl w-[480px] animate-in fade-in-0 zoom-in-95 duration-200">
+          <CardContent className="p-6">
             {/* Header with drag handle */}
-            <div className="flex items-center justify-between mb-3 drag-handle cursor-move">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
-                  <Sparkles className="h-3 w-3 text-white" />
+            <div className="flex items-center justify-between mb-4 drag-handle cursor-move">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-sm font-medium text-gray-700">Vital.ai</span>
+                <span className="text-base font-semibold text-gray-700">Vital.ai</span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={onClose}
-                className="h-6 w-6 p-0 hover:bg-gray-100 no-drag"
+                className="h-8 w-8 p-0 hover:bg-gray-100 no-drag"
                 disabled={isProcessing}
               >
-                <X className="h-3 w-3" />
+                <X className="h-4 w-4" />
               </Button>
             </div>
 
             {/* Prompt Input */}
-            <div className="space-y-3">
+            <div className="space-y-4">
               <Textarea
                 ref={textareaRef}
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="How would you like to organize the patient cards?"
-                className="min-h-[100px] resize-none bg-white/80 backdrop-blur-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 text-sm no-drag"
+                className="min-h-[140px] resize-none bg-white/80 backdrop-blur-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 text-base no-drag"
                 disabled={isProcessing}
               />
               
@@ -106,17 +106,17 @@ export function CedarPromptCard({
                 <Button
                   onClick={handleSubmit}
                   disabled={!prompt.trim() || isProcessing}
-                  size="sm"
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white no-drag"
+                  size="default"
+                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white no-drag px-6 py-2"
                 >
                   {isProcessing ? (
                     <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Processing...
                     </>
                   ) : (
                     <>
-                      <Send className="h-3 w-3 mr-1" />
+                      <Send className="h-4 w-4 mr-2" />
                       Execute
                     </>
                   )}
@@ -125,7 +125,7 @@ export function CedarPromptCard({
             </div>
 
             {/* Subtle hint */}
-            <p className="text-xs text-gray-400 mt-2 text-center">
+            <p className="text-sm text-gray-400 mt-3 text-center">
               Press Ctrl+Enter to submit • Escape to close
             </p>
           </CardContent>
