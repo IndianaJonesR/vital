@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useRef, useCallback } from "react"
+import React, { useState, useRef, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import {
 import Draggable from "react-draggable"
 import { CedarRadialSpell } from "@/components/cedar-radial-spell"
 import { AIResponseCard } from "@/components/cedar-ai-response-card"
+import { CedarPromptModal } from "@/components/cedar-prompt-modal"
 
 type PatientLab = {
   name: string
@@ -74,6 +75,18 @@ type AIResponse = {
 type AIResponseCardState = {
   id: string
   response: AIResponse
+  position: { x: number; y: number }
+}
+
+type PatientGroup = {
+  id: string
+  name: string
+  description: string
+  patientIds: string[]
+  criteria: string
+  priority: "high" | "medium" | "low"
+  visualHint: string
+  color: string
   position: { x: number; y: number }
 }
 
@@ -199,6 +212,14 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   
   // AI Response Cards state
   const [aiResponseCards, setAiResponseCards] = useState<AIResponseCardState[]>([])
+  
+  // Prompt Modal state
+  const [isPromptModalOpen, setIsPromptModalOpen] = useState(false)
+  const [isProcessingPrompt, setIsProcessingPrompt] = useState(false)
+  
+  // Patient Groups state
+  const [patientGroups, setPatientGroups] = useState<PatientGroup[]>([])
+  const [groupedPatients, setGroupedPatients] = useState<Set<string>>(new Set())
 
   // Debug logging for highlighting
   console.log('🎨 PatientCanvas received:', { 
@@ -430,6 +451,158 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     setAiResponseCards(prev => prev.filter(card => card.id !== responseId))
   }, [])
 
+  // Handle prompt modal submission
+  const handlePromptSubmit = useCallback(async (prompt: string, groupingType: string) => {
+    console.log('🤖 Processing prompt:', { prompt, groupingType })
+    setIsProcessingPrompt(true)
+    
+    try {
+      // Call the API endpoint to process the prompt
+      const response = await fetch('/api/cedar/ai-analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt,
+          groupingType,
+          context: {
+            patients: patients.map(p => ({
+              id: p.id,
+              name: p.name,
+              age: p.age,
+              conditions: p.conditions,
+              meds: p.meds,
+              labs: p.labs,
+              priority: p.priority,
+              riskScore: p.riskScore,
+              position: p.position
+            })),
+            highlightedPatients,
+            totalPatients: patients.length
+          }
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to process prompt')
+      }
+
+      const result = await response.json()
+      console.log('🎯 AI Analysis result:', result)
+      
+      // Handle the response based on grouping type
+      if (result.groupings && result.groupings.length > 0) {
+        // Apply visual groupings or highlighting based on the result
+        handleAIGroupingResult(result, groupingType)
+      }
+      
+      setIsPromptModalOpen(false)
+    } catch (error) {
+      console.error('❌ Error processing prompt:', error)
+      // TODO: Show error toast/notification
+    } finally {
+      setIsProcessingPrompt(false)
+    }
+  }, [patients, highlightedPatients])
+
+  // Handle AI grouping results
+  const handleAIGroupingResult = useCallback((result: any, groupingType: string) => {
+    console.log('🎨 Applying AI grouping result:', { result, groupingType })
+    
+    // Handle different grouping types
+    if (groupingType === 'visual-group' && result.groupings) {
+      // Create visual groups and move patients
+      const newGroups: PatientGroup[] = result.groupings.map((group: any, index: number) => {
+        const colors = [
+          'bg-blue-100 border-blue-300',
+          'bg-green-100 border-green-300', 
+          'bg-purple-100 border-purple-300',
+          'bg-orange-100 border-orange-300',
+          'bg-pink-100 border-pink-300',
+          'bg-cyan-100 border-cyan-300'
+        ]
+        
+        // Calculate group position (arrange groups in a grid)
+        const groupsPerRow = Math.ceil(Math.sqrt(result.groupings.length))
+        const groupX = (index % groupsPerRow) * 800 + 100
+        const groupY = Math.floor(index / groupsPerRow) * 600 + 100
+        
+        return {
+          id: `group-${Date.now()}-${index}`,
+          name: group.name,
+          description: group.description,
+          patientIds: group.patientIds || [],
+          criteria: group.criteria,
+          priority: group.priority || 'medium',
+          visualHint: group.visualHint || '',
+          color: colors[index % colors.length],
+          position: { x: groupX, y: groupY }
+        }
+      })
+      
+      setPatientGroups(newGroups)
+      
+      // Track which patients are grouped
+      const allGroupedPatientIds = new Set<string>()
+      newGroups.forEach(group => {
+        group.patientIds.forEach(id => allGroupedPatientIds.add(id))
+      })
+      setGroupedPatients(allGroupedPatientIds)
+      
+      // Animate patients to their group positions
+      animatePatientGrouping(newGroups)
+      
+    } else if (groupingType === 'highlight-filter' && result.highlightedPatients) {
+      // For highlighting, we'd need to communicate with parent component
+      console.log('🎯 Would highlight patients:', result.highlightedPatients)
+      // TODO: Implement highlighting via parent component callback
+    }
+    
+    // If there's an AI response/explanation, show it as a card
+    if (result.analysis) {
+      const aiResponse: AIResponse = {
+        alternatives: [],
+        analysis: result.analysis,
+        recommendations: result.recommendations || [],
+        type: 'patient-analysis'
+      }
+      
+      // Position the response card in the center of the canvas
+      const canvasRect = canvasRef.current?.getBoundingClientRect()
+      const centerPosition = canvasRect ? {
+        x: (canvasRect.width / 2 - pan.x) / zoom,
+        y: (canvasRect.height / 2 - pan.y) / zoom
+      } : { x: 500, y: 300 }
+      
+      handleAIResponse(aiResponse, centerPosition)
+    }
+  }, [pan, zoom, handleAIResponse])
+
+  // Animate patients moving to their group positions
+  const animatePatientGrouping = useCallback((groups: PatientGroup[]) => {
+    console.log('🎬 Animating patient grouping:', groups)
+    
+    // For each group, calculate positions for patients within the group
+    groups.forEach((group, groupIndex) => {
+      const patientsPerRow = Math.ceil(Math.sqrt(group.patientIds.length))
+      
+      group.patientIds.forEach((patientId, patientIndex) => {
+        // Calculate position within the group
+        const offsetX = (patientIndex % patientsPerRow) * 320 // Card width + spacing
+        const offsetY = Math.floor(patientIndex / patientsPerRow) * 420 // Card height + spacing
+        
+        const targetX = group.position.x + offsetX
+        const targetY = group.position.y + offsetY + 80 // Leave space for group header
+        
+        // Find the patient element and animate it
+        // Note: This is a simplified approach - in a real implementation,
+        // you'd want to update the patient positions in state and let React handle the animation
+        console.log(`📍 Patient ${patientId} should move to (${targetX}, ${targetY})`)
+      })
+    })
+  }, [])
+
   const handleClickOutside = useCallback((e: React.MouseEvent) => {
     // Close menu when clicking on canvas (but not on menu itself)
     if (e.target === e.currentTarget && contextMenu) {
@@ -530,6 +703,21 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       }
     }
   }, [])
+
+  // Handle global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Shift + C to open prompt modal
+      if (e.shiftKey && e.key.toLowerCase() === 'c' && !isPromptModalOpen) {
+        e.preventDefault()
+        console.log('🎯 Opening CedarOS prompt modal via Shift+C')
+        setIsPromptModalOpen(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isPromptModalOpen])
 
   const getInitialPosition = (index: number) => {
     // Arrange patients in a grid initially
@@ -852,6 +1040,51 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           })}
         </div>
 
+        {/* Patient Groups - Visual group headers */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          {patientGroups.map((group) => (
+            <div
+              key={group.id}
+              className={`absolute rounded-lg border-2 border-dashed p-4 ${group.color} backdrop-blur-sm`}
+              style={{
+                left: group.position.x,
+                top: group.position.y,
+                minWidth: '300px',
+                minHeight: '200px'
+              }}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold text-sm text-gray-800">{group.name}</h3>
+                  <p className="text-xs text-gray-600 mt-1">{group.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge 
+                    variant="outline" 
+                    className={`text-xs ${
+                      group.priority === 'high' ? 'bg-red-50 text-red-700 border-red-200' :
+                      group.priority === 'medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
+                      'bg-green-50 text-green-700 border-green-200'
+                    }`}
+                  >
+                    {group.priority}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {group.patientIds.length} patients
+                  </Badge>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500">{group.criteria}</p>
+            </div>
+          ))}
+        </div>
+
         {/* AI Response Cards - Positioned within the transformed canvas */}
         <div 
           className="absolute inset-0"
@@ -902,11 +1135,24 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <div>• Pinch with two fingers to zoom on trackpad</div>
               <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
               <div>• <strong>Shift+click</strong> to open radial spell menu</div>
+              <div>• <strong>Shift+C</strong> to open CedarOS prompt for card grouping</div>
               <div>• <strong>Radial menu</strong> shows context-aware AI actions</div>
               <div>• Alt+click and drag also works for panning</div>
             </div>
           </div>
         )}
+
+        {/* CedarOS Prompt Modal */}
+        <CedarPromptModal
+          isOpen={isPromptModalOpen}
+          onClose={() => setIsPromptModalOpen(false)}
+          onSubmit={handlePromptSubmit}
+          isProcessing={isProcessingPrompt}
+          context={{
+            highlightedPatients,
+            totalPatients: patients.length
+          }}
+        />
       </div>
     </div>
   )

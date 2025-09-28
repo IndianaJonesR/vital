@@ -2,77 +2,164 @@ import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || process.env.NEXT_PUBLIC_OPENAI_API_KEY
 })
+
+type Patient = {
+  id: string
+  name: string
+  age: number
+  conditions: string[]
+  meds: string[]
+  labs: Array<{
+    name: string
+    value: number | string
+    status: string
+  }>
+  priority: "critical" | "high" | "medium" | "low"
+  riskScore: number
+  position?: { x: number; y: number }
+}
+
+type AnalysisRequest = {
+  prompt: string
+  groupingType: string
+  context: {
+    patients: Patient[]
+    highlightedPatients: string[]
+    totalPatients: number
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, context } = await request.json()
+    const body: AnalysisRequest = await request.json()
+    const { prompt, groupingType, context } = body
 
-    if (!prompt) {
-      return NextResponse.json(
-        { error: 'Prompt is required' },
-        { status: 400 }
-      )
-    }
-
-    // Use OpenAI to analyze the research update and match patients
-    const response = await openai.chat.completions.create({
-      model: 'gpt-5-mini', // Using smarter model
-      messages: [
-        {
-          role: 'system',
-          content: `You are a medical AI assistant that analyzes research updates and identifies which patients would be affected based on their medical data.
-
-Your task is to:
-1. Analyze the research update for medical criteria
-2. Match patients based on their conditions, lab values, medications, and risk factors
-3. Return ONLY a JSON array of patient IDs that match the criteria
-
-Be precise and only include patients who clearly meet the criteria mentioned in the research update.`
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.1,
-      max_tokens: 500 // Reduced token limit for faster response
+    console.log('🤖 Processing AI analysis request:', { 
+      prompt: prompt.substring(0, 100) + '...', 
+      groupingType, 
+      patientCount: context.patients.length 
     })
 
-    const aiResponse = response.choices[0]?.message?.content
-    
-    if (!aiResponse) {
-      throw new Error('No response from AI')
+    // Create a system prompt for the CedarOS agent
+    const systemPrompt = `You are a medical AI assistant integrated with CedarOS that helps healthcare providers organize and group patient cards on a visual canvas.
+
+Your task is to analyze the user's request and provide structured grouping recommendations based on the patient data provided.
+
+Available grouping types:
+- visual-group: Move cards into visual clusters on the canvas
+- highlight-filter: Highlight patients that match specific criteria
+- risk-stratify: Group patients by risk levels or severity
+- condition-cluster: Group patients by similar medical conditions
+
+Patient data includes: conditions, medications, lab values, risk scores, priority levels, and demographics.
+
+Respond with a JSON object containing:
+{
+  "analysis": "Brief explanation of your analysis and grouping strategy",
+  "groupings": [
+    {
+      "name": "Group name",
+      "description": "Why these patients are grouped together",
+      "patientIds": ["patient1", "patient2"],
+      "criteria": "The specific criteria used for grouping",
+      "priority": "high|medium|low",
+      "visualHint": "Suggested visual treatment (color, position, etc.)"
+    }
+  ],
+  "highlightedPatients": ["patient1", "patient2"], // For highlight-filter type
+  "recommendations": ["Action item 1", "Action item 2"],
+  "summary": "Overall summary of findings"
+}
+
+Be precise and only include patients that clearly meet the specified criteria.`
+
+    // Create the user prompt with context
+    const userPrompt = `
+User Request: "${prompt}"
+Grouping Type: ${groupingType}
+
+Patient Data:
+${context.patients.map(p => `
+Patient: ${p.name} (ID: ${p.id})
+- Age: ${p.age}
+- Conditions: ${p.conditions.join(', ')}
+- Medications: ${p.meds.join(', ')}
+- Labs: ${p.labs.map(lab => `${lab.name}: ${lab.value} (${lab.status})`).join(', ')}
+- Priority: ${p.priority}
+- Risk Score: ${p.riskScore}
+`).join('\n')}
+
+Currently Highlighted Patients: ${context.highlightedPatients.length > 0 ? context.highlightedPatients.join(', ') : 'None'}
+
+Please analyze this data and provide grouping recommendations based on the user's request.`
+
+    // Call OpenAI API
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.1,
+      max_tokens: 1500,
+      response_format: { type: 'json_object' }
+    })
+
+    const responseText = completion.choices[0]?.message?.content
+    if (!responseText) {
+      throw new Error('No response from OpenAI')
     }
 
-    // Parse the JSON response from AI
-    let matchingPatientIds: string[] = []
+    let analysisResult
     try {
-      const parsed = JSON.parse(aiResponse)
-      if (Array.isArray(parsed)) {
-        matchingPatientIds = parsed
-      }
+      analysisResult = JSON.parse(responseText)
     } catch (parseError) {
-      console.error('Error parsing AI response:', parseError)
-      // Fallback: try to extract patient IDs from text
-      const idMatches = aiResponse.match(/"([a-f0-9-]{36})"/g)
-      if (idMatches) {
-        matchingPatientIds = idMatches.map(match => match.replace(/"/g, ''))
-      }
+      console.error('Failed to parse OpenAI response:', parseError)
+      throw new Error('Invalid JSON response from AI')
+    }
+
+    console.log('✅ AI analysis completed:', {
+      groupingsCount: analysisResult.groupings?.length || 0,
+      highlightedCount: analysisResult.highlightedPatients?.length || 0
+    })
+
+    // Validate that patient IDs exist in our dataset
+    const validPatientIds = new Set(context.patients.map(p => p.id))
+    
+    if (analysisResult.groupings) {
+      analysisResult.groupings = analysisResult.groupings.map((group: any) => ({
+        ...group,
+        patientIds: group.patientIds?.filter((id: string) => validPatientIds.has(id)) || []
+      }))
+    }
+
+    if (analysisResult.highlightedPatients) {
+      analysisResult.highlightedPatients = analysisResult.highlightedPatients.filter(
+        (id: string) => validPatientIds.has(id)
+      )
     }
 
     return NextResponse.json({
       success: true,
-      matchingPatientIds,
-      analysis: aiResponse,
-      context
+      ...analysisResult,
+      metadata: {
+        processedAt: new Date().toISOString(),
+        groupingType,
+        patientCount: context.patients.length
+      }
     })
 
   } catch (error) {
-    console.error('Cedar AI analysis error:', error)
+    console.error('❌ Error in AI analysis:', error)
+    
     return NextResponse.json(
-      { error: 'Failed to analyze with AI' },
+      { 
+        success: false, 
+        error: 'Failed to process AI analysis',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }
