@@ -117,7 +117,7 @@ export function AIResponseCard({ response, position, onClose, onConnect }: AIRes
   return (
     <Draggable
       defaultPosition={position}
-      bounds="parent"
+      bounds={false}
       cancel=".no-drag"
     >
       <div className="absolute">
