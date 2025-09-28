@@ -518,11 +518,11 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     if (result.groupings && result.groupings.length > 0) {
       const newPositions = new Map<string, { x: number; y: number }>()
       
-      // Calculate new positions for each group
+      // Calculate new positions for each group with EXTREME spacing across the canvas
       result.groupings.forEach((group: any, groupIndex: number) => {
         const groupsPerRow = Math.ceil(Math.sqrt(result.groupings.length))
-        const baseX = (groupIndex % groupsPerRow) * 800 + 100
-        const baseY = Math.floor(groupIndex / groupsPerRow) * 600 + 100
+        const baseX = (groupIndex % groupsPerRow) * 2500 + 500 // MASSIVE spacing - 2500px apart
+        const baseY = Math.floor(groupIndex / groupsPerRow) * 2000 + 500 // MASSIVE spacing - 2000px apart
         
         // Arrange patients within each group
         const patientsPerRow = Math.ceil(Math.sqrt(group.patientIds.length))
@@ -531,10 +531,13 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           const offsetX = (patientIndex % patientsPerRow) * 320 // Card width + spacing
           const offsetY = Math.floor(patientIndex / patientsPerRow) * 420 // Card height + spacing
           
-          newPositions.set(patientId, {
+          const finalPosition = {
             x: baseX + offsetX,
             y: baseY + offsetY
-          })
+          }
+          
+          console.log(`🎯 Setting position for patient ${patientId} in group "${group.name}":`, finalPosition)
+          newPositions.set(patientId, finalPosition)
         })
       })
       
@@ -542,6 +545,11 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       setPatientPositions(newPositions)
       
       console.log('📍 Updated patient positions:', Array.from(newPositions.entries()))
+      
+      // Auto-zoom out to show all groups after a short delay
+      setTimeout(() => {
+        autoZoomToFitGroups(newPositions)
+      }, 500) // Delay to let positions update first
     }
     
     // Show AI analysis as a response card
@@ -563,6 +571,69 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       handleAIResponse(aiResponse, centerPosition)
     }
   }, [pan, zoom, handleAIResponse])
+
+  // Auto-zoom to fit all groups
+  const autoZoomToFitGroups = useCallback((positions: Map<string, { x: number; y: number }>) => {
+    if (positions.size === 0) return
+    
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (!canvasRect) return
+    
+    // Calculate bounding box of all patient positions
+    const positionsArray = Array.from(positions.values())
+    const minX = Math.min(...positionsArray.map(p => p.x)) - 50 // Add padding
+    const maxX = Math.max(...positionsArray.map(p => p.x)) + 350 // Add card width + padding
+    const minY = Math.min(...positionsArray.map(p => p.y)) - 50 // Add padding
+    const maxY = Math.max(...positionsArray.map(p => p.y)) + 450 // Add card height + padding
+    
+    const contentWidth = maxX - minX
+    const contentHeight = maxY - minY
+    
+    // Set zoom to exactly 30% to clearly see all groups
+    const targetZoom = 0.3
+    
+    // Calculate pan to center the content
+    const centerX = (minX + maxX) / 2
+    const centerY = (minY + maxY) / 2
+    const targetPanX = canvasRect.width / 2 - centerX * targetZoom
+    const targetPanY = canvasRect.height / 2 - centerY * targetZoom
+    
+    console.log('🔍 Auto-zooming to fit groups:', { 
+      targetZoom, 
+      targetPanX, 
+      targetPanY, 
+      contentBounds: { minX, maxX, minY, maxY }
+    })
+    
+    // Animate to the new zoom and pan
+    const startZoom = zoom
+    const startPan = { ...pan }
+    const startTime = Date.now()
+    const duration = 1000
+    
+    const animateZoom = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      // Easing function for smooth animation
+      const easeOut = 1 - Math.pow(1 - progress, 3)
+      
+      const newZoom = startZoom + (targetZoom - startZoom) * easeOut
+      const newPanX = startPan.x + (targetPanX - startPan.x) * easeOut
+      const newPanY = startPan.y + (targetPanY - startPan.y) * easeOut
+      
+      setZoom(newZoom)
+      setPan({ x: newPanX, y: newPanY })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateZoom)
+      } else {
+        console.log('✅ Auto-zoom animation completed')
+      }
+    }
+    
+    requestAnimationFrame(animateZoom)
+  }, [zoom, pan])
 
   const handleClickOutside = useCallback((e: React.MouseEvent) => {
     // Close menu when clicking on canvas (but not on menu itself)
@@ -681,10 +752,10 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         e.preventDefault()
         console.log('🎯 Opening Vital.ai prompt card via Shift+C')
         
-        // Position the prompt card at the last cursor position
+        // Position the prompt card at the last cursor position (updated for larger card)
         const spawnPosition = {
-          x: lastCursorPosition.x - 160, // Offset to center the card on cursor
-          y: lastCursorPosition.y - 100
+          x: lastCursorPosition.x - 192, // Offset to center the card on cursor (w-96 = 384px / 2 = 192)
+          y: lastCursorPosition.y - 120
         }
         
         setPromptCard({ position: spawnPosition })
@@ -729,7 +800,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       {/* Canvas Controls */}
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/95 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-foreground">Patient Canvas</h3>
+          <h3 className="text-lg font-semibold text-foreground">Vital.ai Patient Dashboard</h3>
           <Badge variant="outline" className="text-xs">
             {patients.length} patients
           </Badge>
@@ -890,12 +961,13 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
 
             return (
               <Draggable
-                key={`${patient.id}-${currentPosition.x}-${currentPosition.y}`} // Force re-render when position changes
+                key={`patient-${patient.id}-${Math.round(currentPosition.x)}-${Math.round(currentPosition.y)}`} // Force re-render when position changes
                 position={currentPosition}
                 bounds={getDraggableBounds()}
                 cancel=".no-drag"
                 onStop={(e, data) => {
                   // Update position when user drags manually
+                  console.log(`📍 Manual drag update for ${patient.name}:`, { x: data.x, y: data.y })
                   setPatientPositions(prev => new Map(prev.set(patient.id, { x: data.x, y: data.y })))
                 }}
               >

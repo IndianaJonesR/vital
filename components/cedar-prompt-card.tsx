@@ -69,7 +69,7 @@ export function CedarPromptCard({
       handle=".drag-handle"
     >
       <div className="absolute z-50">
-        <Card className="bg-white/95 backdrop-blur-md border-2 border-gray-200/80 shadow-2xl w-80 animate-in fade-in-0 zoom-in-95 duration-200">
+        <Card className="bg-white/95 backdrop-blur-md border-2 border-gray-200/80 shadow-2xl w-96 animate-in fade-in-0 zoom-in-95 duration-200">
           <CardContent className="p-4">
             {/* Header with drag handle */}
             <div className="flex items-center justify-between mb-3 drag-handle cursor-move">
@@ -97,7 +97,7 @@ export function CedarPromptCard({
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="How would you like to organize the patient cards?"
-                className="min-h-[80px] resize-none bg-white/80 backdrop-blur-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 text-sm no-drag"
+                className="min-h-[100px] resize-none bg-white/80 backdrop-blur-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 text-sm no-drag"
                 disabled={isProcessing}
               />
               
