@@ -4,12 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
-  FileText,
-  Calendar,
-  User,
   TestTube,
   Zap,
   TrendingUp,
@@ -17,30 +13,19 @@ import {
   CheckCircle,
   Clock,
   Star,
-  Sparkles,
-  Shield,
   Target,
-  Pause as Pulse,
-  Eye,
   Stethoscope,
   Loader2,
   Users,
-  Search,
   Menu,
   X,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { PatientCanvas } from "@/components/canvas/PatientCanvas"
-import { CedarPatientMatcher } from "@/components/cedar-patient-matcher"
 import { CedarAgentContext } from "@/components/cedar-agent-context"
+import { VitalAiBadge } from "@/components/vital-ai-badge"
 import { useRegisterState, useCedarStore } from "cedar-os"
 import { z } from "zod"
 
@@ -348,6 +333,7 @@ export default function PatientDashboard() {
   const [matchingInProgress, setMatchingInProgress] = useState<string | null>(null)
   const [glowingPatients, setGlowingPatients] = useState<string[]>([])
   const [isResearchStreamCollapsed, setIsResearchStreamCollapsed] = useState(false)
+  const [showVitalAiBadge, setShowVitalAiBadge] = useState(false)
 
   // CedarOS agent context handlers
   const handleHighlightPatients = (patientIds: string[]) => {
@@ -365,37 +351,36 @@ export default function PatientDashboard() {
     setGlowingPatients([])
   }
 
-  // Function to handle Cedar AI patient matching
-  const handleCedarMatchStart = (updateId: string) => {
-    setMatchingInProgress(updateId)
+  // Function to handle research card click with vital.ai integration
+  const handleResearchCardClick = async (update: UpdateWithMeta) => {
+    setMatchingInProgress(update.id)
+    setShowVitalAiBadge(true)
     setGlowingPatients([])
   }
 
-  const handleCedarMatchComplete = (matchingIds: string[]) => {
-    console.log('🎨 handleCedarMatchComplete called with:', matchingIds)
+  const handleVitalAiComplete = async () => {
+    setShowVitalAiBadge(false)
+    
+    // Get the current matching update
+    const currentUpdate = updates.find(u => u.id === matchingInProgress)
+    if (!currentUpdate) return
+    
+    // Simulate the AI matching process (use the existing impacted patients)
+    const matchingIds = currentUpdate.impactedPatients || []
     
     // Set highlighted patients and add glowing effect
     setHighlightedPatients(matchingIds)
     setGlowingPatients(matchingIds)
     
-    console.log('🎨 State updated - highlightedPatients:', matchingIds)
-    console.log('🎨 State updated - glowingPatients:', matchingIds)
+    console.log('🎨 Vital.ai match complete - highlightedPatients:', matchingIds)
     
-    // Show success notification
-    if (matchingIds.length > 0) {
-      console.log(`🎉 Found ${matchingIds.length} matching patients!`)
-      // You could add a toast notification here if you have a toast system
-    } else {
-      console.log('ℹ️ No matching patients found')
-    }
+    // Clear matching progress
+    setMatchingInProgress(null)
     
-    // Remove glowing effect after 5 seconds (longer for demo)
+    // Remove glowing effect after 3 seconds
     setTimeout(() => {
       setGlowingPatients([])
-      console.log('🎨 Glowing effect removed after 5 seconds')
-    }, 5000)
-    
-    setMatchingInProgress(null)
+    }, 3000)
   }
   useEffect(() => {
     const fetchData = async () => {
@@ -583,167 +568,68 @@ export default function PatientDashboard() {
 
       {!loading && !error &&
         updates.map((update) => (
-          <DropdownMenu key={update.id}>
-            <DropdownMenuTrigger asChild>
-              <Drawer
-                onOpenChange={(open) => setHighlightedPatients(open ? update.impactedPatients ?? [] : [])}
-              >
-                <DrawerTrigger asChild>
-                  <div className="group cursor-pointer relative">
-                    <Card className={`surface-card border border-border/60 hover:shadow-lg transition-all duration-200 ${
-                      matchingInProgress === update.id ? 'ring-2 ring-primary animate-pulse' : ''
-                    }`}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-1 min-w-0 space-y-3">
-                            <div className="flex items-center gap-2">
-                              <Badge
-                                className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
-                                  update.urgency === "critical"
-                                    ? "text-rose-600"
-                                    : update.urgency === "high"
-                                    ? "text-amber-600"
-                                    : "text-blue-600"
-                                }`}
-                              >
-                                {update.category}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">{update.timestamp}</span>
-                              <Badge variant="outline" className="text-xs opacity-70 bg-muted/30">
-                                {update.readTime}
-                              </Badge>
-                              {matchingInProgress === update.id && (
-                                <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
-                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  Matching...
-                                </Badge>
-                              )}
-                            </div>
-
-                            <div>
-                              <h4 className="font-semibold text-sm text-sidebar-foreground leading-snug mb-2">
-                                {update.title}
-                              </h4>
-                              <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
-                                {update.summary}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <Target className="h-3 w-3 text-primary" />
-                                <span className="text-xs text-muted-foreground font-medium">
-                                  {update.impactedPatients.length} patient
-                                  {update.impactedPatients.length !== 1 ? "s" : ""}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Star className="h-3 w-3 text-yellow-500" />
-                                <span className="text-xs text-muted-foreground font-medium">{update.source}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                    {/* Hover overlay with actions */}
-                    <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                      <div className="flex gap-2">
-                        <CedarPatientMatcher
-                          updateText={update.summary}
-                          updateId={update.id}
-                          patients={patients}
-                          onMatchStart={() => handleCedarMatchStart(update.id)}
-                          onMatchComplete={handleCedarMatchComplete}
-                          isMatching={matchingInProgress === update.id}
-                        />
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          className="bg-background/90 hover:bg-background shadow-lg"
-                        >
-                          <Search className="h-4 w-4 mr-2" />
-                          View Details
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </DrawerTrigger>
-                <DrawerContent className="max-h-[85vh] surface-card border border-border/60">
-                  <DrawerHeader className="border-b border-border/60">
-                    <DrawerTitle className="text-balance text-xl font-semibold text-foreground">{update.title}</DrawerTitle>
-                    <div className="flex items-center flex-wrap gap-3 mt-3 text-xs">
-                      <Badge className={`${getCategoryColor(update.category)} text-white`}>{update.category}</Badge>
-                      <Badge variant="outline" className="bg-muted/50">
-                        {update.source}
+          <div 
+            key={update.id} 
+            className="cursor-pointer relative"
+            onClick={() => handleResearchCardClick(update)}
+          >
+            <Card className={`surface-card border border-border/60 hover:shadow-lg transition-all duration-200 ${
+              matchingInProgress === update.id ? 'ring-2 ring-primary animate-pulse' : ''
+            }`}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        className={`text-xs px-3 py-1 font-medium bg-muted/40 border-border/50 ${
+                          update.urgency === "critical"
+                            ? "text-rose-600"
+                            : update.urgency === "high"
+                            ? "text-amber-600"
+                            : "text-blue-600"
+                        }`}
+                      >
+                        {update.category}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">{update.timestamp}</span>
-                      <Badge variant="outline" className="bg-primary/10 text-primary">
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">{update.timestamp}</span>
+                      <Badge variant="outline" className="text-xs opacity-70 bg-muted/30">
                         {update.readTime}
                       </Badge>
-                    </div>
-                  </DrawerHeader>
-                  <div className="p-6 space-y-6 overflow-y-auto">
-                    <div className="surface-subtle p-4">
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-primary" />
-                        Research Summary
-                      </h4>
-                      <p className="text-muted-foreground text-pretty leading-relaxed">{update.summary}</p>
+                      {matchingInProgress === update.id && (
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          Matching...
+                        </Badge>
+                      )}
                     </div>
 
                     <div>
-                      <h4 className="font-semibold mb-4 flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-primary" />
-                        Impacted Patients ({update.impactedPatients.length})
+                      <h4 className="font-semibold text-sm text-sidebar-foreground leading-snug mb-2">
+                        {update.title}
                       </h4>
-                      <div className="space-y-3">
-                        {update.impactedPatients.map((patientId) => {
-                          const patient = patients.find((p) => p.id === patientId)
-                          if (!patient) return null
+                      <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed">
+                        {update.summary}
+                      </p>
+                    </div>
 
-                          return (
-                            <Card key={patient.id} className="surface-card p-4">
-                              <div className="flex items-center justify-between mb-3">
-                                <h5 className="font-semibold flex items-center gap-2">
-                                  <User className="h-4 w-4 text-primary" />
-                                  {patient.name}
-                                </h5>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="outline">Age {patient.age}</Badge>
-                                  <Badge className={`text-xs font-medium ${getRiskScoreColor(patient.riskScore)}`}>
-                                    Risk: {patient.riskScore}%
-                                  </Badge>
-                                </div>
-                              </div>
-                              <div className="flex flex-wrap gap-2 mb-4">
-                                {patient.conditions.map((condition, index) => (
-                                  <Badge key={index} className={getConditionColor(condition)} variant="secondary">
-                                    {condition}
-                                  </Badge>
-                                ))}
-                              </div>
-                              <div className="flex gap-2 flex-wrap">
-                                <Button size="sm" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                                  <Sparkles className="h-3 w-3 mr-1" /> AI Explainer
-                                </Button>
-                                <Button size="sm" variant="outline" className="hover:bg-muted/50">
-                                  <FileText className="h-3 w-3 mr-1" /> Summary
-                                </Button>
-                                <Button size="sm" variant="ghost" className="gap-1 hover:bg-muted/50">
-                                  <Calendar className="h-3 w-3" /> Schedule
-                                </Button>
-                              </div>
-                            </Card>
-                          )
-                        })}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-3 w-3 text-primary" />
+                        <span className="text-xs text-muted-foreground font-medium">
+                          {update.impactedPatients.length} patient
+                          {update.impactedPatients.length !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Star className="h-3 w-3 text-yellow-500" />
+                        <span className="text-xs text-muted-foreground font-medium">{update.source}</span>
                       </div>
                     </div>
                   </div>
-                </DrawerContent>
-              </Drawer>
-            </DropdownMenuTrigger>
-          </DropdownMenu>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         ))}
     </div>
   )
@@ -757,6 +643,12 @@ export default function PatientDashboard() {
         highlightedPatients={highlightedPatients}
         onHighlightPatients={handleHighlightPatients}
         onClearHighlights={handleClearHighlights}
+      />
+
+      {/* Vital.ai Loading Badge */}
+      <VitalAiBadge 
+        isVisible={showVitalAiBadge}
+        onComplete={handleVitalAiComplete}
       />
       
       <div className="flex h-screen">

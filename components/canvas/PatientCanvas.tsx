@@ -87,6 +87,9 @@ type PatientGroup = {
   priority: "high" | "medium" | "low"
   visualHint: string
   color: string
+  ringColor: string
+  bgColor: string
+  textColor: string
   position: { x: number; y: number }
 }
 
@@ -220,6 +223,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   // Patient Groups state
   const [patientGroups, setPatientGroups] = useState<PatientGroup[]>([])
   const [groupedPatients, setGroupedPatients] = useState<Set<string>>(new Set())
+  const [patientGroupColors, setPatientGroupColors] = useState<Map<string, { ringColor: string; bgColor: string; groupName: string }>>(new Map())
   
   // Patient positions state - track current positions of all patients
   const [patientPositions, setPatientPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
@@ -517,12 +521,82 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     
     if (result.groupings && result.groupings.length > 0) {
       const newPositions = new Map<string, { x: number; y: number }>()
+      const newGroups: PatientGroup[] = []
+      const newPatientColors = new Map<string, { ringColor: string; bgColor: string; groupName: string }>()
+      
+      // Define distinct colors for groups
+      const groupColors = [
+        { 
+          ring: 'ring-blue-500', 
+          bg: 'bg-blue-50', 
+          text: 'text-blue-700',
+          border: 'border-blue-300',
+          shadow: 'shadow-blue-200/30'
+        },
+        { 
+          ring: 'ring-green-500', 
+          bg: 'bg-green-50', 
+          text: 'text-green-700',
+          border: 'border-green-300',
+          shadow: 'shadow-green-200/30'
+        },
+        { 
+          ring: 'ring-purple-500', 
+          bg: 'bg-purple-50', 
+          text: 'text-purple-700',
+          border: 'border-purple-300',
+          shadow: 'shadow-purple-200/30'
+        },
+        { 
+          ring: 'ring-orange-500', 
+          bg: 'bg-orange-50', 
+          text: 'text-orange-700',
+          border: 'border-orange-300',
+          shadow: 'shadow-orange-200/30'
+        },
+        { 
+          ring: 'ring-pink-500', 
+          bg: 'bg-pink-50', 
+          text: 'text-pink-700',
+          border: 'border-pink-300',
+          shadow: 'shadow-pink-200/30'
+        },
+        { 
+          ring: 'ring-cyan-500', 
+          bg: 'bg-cyan-50', 
+          text: 'text-cyan-700',
+          border: 'border-cyan-300',
+          shadow: 'shadow-cyan-200/30'
+        }
+      ]
       
       // Calculate new positions for each group with EXTREME spacing across the canvas
       result.groupings.forEach((group: any, groupIndex: number) => {
         const groupsPerRow = Math.ceil(Math.sqrt(result.groupings.length))
         const baseX = (groupIndex % groupsPerRow) * 2500 + 500 // MASSIVE spacing - 2500px apart
         const baseY = Math.floor(groupIndex / groupsPerRow) * 2000 + 500 // MASSIVE spacing - 2000px apart
+        
+        console.log(`🏗️ Group ${groupIndex} "${group.name}" base position:`, { baseX, baseY })
+        
+        // Get color for this group
+        const groupColor = groupColors[groupIndex % groupColors.length]
+        
+        // Create group object
+        const newGroup: PatientGroup = {
+          id: `group-${Date.now()}-${groupIndex}`,
+          name: group.name,
+          description: group.description,
+          patientIds: group.patientIds || [],
+          criteria: group.criteria,
+          priority: group.priority || 'medium',
+          visualHint: group.visualHint || '',
+          color: groupColor.bg,
+          ringColor: groupColor.ring,
+          bgColor: groupColor.bg,
+          textColor: groupColor.text,
+          position: { x: baseX, y: baseY - 80 } // Position label above the group
+        }
+        newGroups.push(newGroup)
         
         // Arrange patients within each group
         const patientsPerRow = Math.ceil(Math.sqrt(group.patientIds.length))
@@ -536,15 +610,27 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             y: baseY + offsetY
           }
           
+          // Assign color to this patient
+          newPatientColors.set(patientId, {
+            ringColor: groupColor.ring,
+            bgColor: groupColor.bg,
+            groupName: group.name
+          })
+          
           console.log(`🎯 Setting position for patient ${patientId} in group "${group.name}":`, finalPosition)
           newPositions.set(patientId, finalPosition)
         })
       })
       
-      // Update patient positions
+      // Update all states and force re-render
       setPatientPositions(newPositions)
+      setPatientGroups(newGroups)
+      setPatientGroupColors(newPatientColors)
+      setGroupedPatients(new Set(newPatientColors.keys()))
       
       console.log('📍 Updated patient positions:', Array.from(newPositions.entries()))
+      console.log('🎨 Updated patient colors:', Array.from(newPatientColors.entries()))
+      console.log('🏷️ Created groups:', newGroups)
       
       // Auto-zoom out to show all groups after a short delay
       setTimeout(() => {
@@ -634,6 +720,57 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     
     requestAnimationFrame(animateZoom)
   }, [zoom, pan])
+
+  // Handle group dragging - move all cards in a group together
+  const handleGroupDragStop = useCallback((groupId: string, newLabelPosition: { x: number; y: number }) => {
+    const group = patientGroups.find(g => g.id === groupId)
+    if (!group) return
+
+    // Calculate how much the label moved
+    const deltaX = newLabelPosition.x - group.position.x
+    const deltaY = newLabelPosition.y - group.position.y
+
+    console.log(`🏷️ Group "${group.name}" moved by:`, { deltaX, deltaY, from: group.position, to: newLabelPosition })
+
+    if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+      console.log('📍 No significant movement, skipping update')
+      return // No significant movement
+    }
+
+    // Create completely new Map to ensure React detects the change
+    const newPositions = new Map<string, { x: number; y: number }>()
+    
+    // Copy all existing positions
+    patientPositions.forEach((pos, id) => {
+      newPositions.set(id, { ...pos })
+    })
+    
+    // Update positions of all patients in this group
+    group.patientIds.forEach(patientId => {
+      const currentPos = newPositions.get(patientId)
+      if (currentPos) {
+        const newPos = {
+          x: currentPos.x + deltaX,
+          y: currentPos.y + deltaY
+        }
+        console.log(`📍 Moving patient ${patientId} from`, currentPos, 'to', newPos)
+        newPositions.set(patientId, newPos)
+      }
+    })
+
+    // Update all states in sequence with proper batching
+    setTimeout(() => {
+      // Update patient positions first
+      setPatientPositions(newPositions)
+      
+      // Update group position
+      setPatientGroups(prev => prev.map(g => 
+        g.id === groupId 
+          ? { ...g, position: newLabelPosition }
+          : g
+      ))
+    }, 0)
+  }, [patientGroups, patientPositions])
 
   const handleClickOutside = useCallback((e: React.MouseEvent) => {
     // Close menu when clicking on canvas (but not on menu itself)
@@ -907,6 +1044,44 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           onClearHighlights={handleClearHighlights}
         />
 
+        {/* Group Background Areas - Visual connection */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          {patientGroups.map((group) => {
+            // Calculate bounding box for all cards in this group
+            const groupPatientPositions = group.patientIds
+              .map(id => patientPositions.get(id))
+              .filter(Boolean) as { x: number; y: number }[]
+            
+            if (groupPatientPositions.length === 0) return null
+            
+            const minX = Math.min(...groupPatientPositions.map(p => p.x)) - 20
+            const maxX = Math.max(...groupPatientPositions.map(p => p.x)) + 300 // Card width + padding
+            const minY = Math.min(...groupPatientPositions.map(p => p.y)) - 20
+            const maxY = Math.max(...groupPatientPositions.map(p => p.y)) + 420 // Card height + padding
+            
+            return (
+              <div
+                key={`group-bg-${group.id}`}
+                className={`absolute rounded-lg border border-dashed opacity-20 ${group.bgColor} ${group.ringColor.replace('ring-', 'border-')} pointer-events-none`}
+                style={{
+                  left: minX,
+                  top: minY,
+                  width: maxX - minX,
+                  height: maxY - minY,
+                  zIndex: 1, // Lower z-index to not interfere with cards
+                  pointerEvents: 'none'
+                }}
+              />
+            )
+          })}
+        </div>
+
         {/* Canvas Content */}
         <div 
           className="absolute inset-0"
@@ -954,32 +1129,73 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             
             // Initialize position in state if not already tracked
             if (!trackedPosition && !patientPositions.has(patient.id)) {
-              setPatientPositions(prev => new Map(prev.set(patient.id, initialPosition)))
+              // Use setTimeout to avoid state updates during render
+              setTimeout(() => {
+                setPatientPositions(prev => {
+                  if (!prev.has(patient.id)) {
+                    const newPositions = new Map(prev)
+                    newPositions.set(patient.id, initialPosition)
+                    return newPositions
+                  }
+                  return prev
+                })
+              }, 0)
             }
             
             const currentPosition = trackedPosition || initialPosition
+            
+            // Debug logging for position tracking
+            if (trackedPosition) {
+              console.log(`🔍 Patient ${patient.name} using tracked position:`, trackedPosition)
+            }
+            
+            // Check if this patient is in a group and get its colors
+            const patientGroupColor = patientGroupColors.get(patient.id)
+            const isGrouped = patientGroupColor !== undefined
 
             return (
               <Draggable
-                key={`patient-${patient.id}-${Math.round(currentPosition.x)}-${Math.round(currentPosition.y)}`} // Force re-render when position changes
-                position={currentPosition}
+                key={`patient-${patient.id}`} // Stable key - don't remount on position updates
+                position={currentPosition} // Use controlled position instead of defaultPosition
                 bounds={getDraggableBounds()}
                 cancel=".no-drag"
+                scale={zoom} // Scale drag sensitivity with zoom level
+                onStart={(e, data) => {
+                  console.log(`🎯 Started dragging ${patient.name} at zoom ${zoom}`)
+                  // Return void to allow drag
+                }}
+                onDrag={(e, data) => {
+                  // Update position in real-time for smooth dragging
+                  const newPositions = new Map(patientPositions)
+                  newPositions.set(patient.id, { x: data.x, y: data.y })
+                  setPatientPositions(newPositions)
+                }}
                 onStop={(e, data) => {
-                  // Update position when user drags manually
-                  console.log(`📍 Manual drag update for ${patient.name}:`, { x: data.x, y: data.y })
-                  setPatientPositions(prev => new Map(prev.set(patient.id, { x: data.x, y: data.y })))
+                  // Final position update when user finishes dragging
+                  console.log(`📍 Manual drag completed for ${patient.name}:`, { x: data.x, y: data.y })
+                  const newPositions = new Map(patientPositions)
+                  newPositions.set(patient.id, { x: data.x, y: data.y })
+                  setPatientPositions(newPositions)
                 }}
               >
-                <div className="absolute">
+                <div className="absolute" style={{ zIndex: isGrouped ? 20 : 10, cursor: 'move' }}>
                   <Card
-                    className={`bg-white border-2 border-gray-200 rounded-xl shadow-lg transition-all duration-300 w-72 h-96 cursor-move ${
-                      highlightedPatients.includes(patient.id)
+                    className={`bg-white border-2 rounded-xl shadow-lg transition-all duration-300 w-72 h-96 cursor-move overflow-hidden group pointer-events-auto ${
+                      // Group highlighting takes priority
+                      isGrouped
+                        ? `ring-4 ${patientGroupColor.ringColor} shadow-2xl border-current hover:scale-105`
+                        : highlightedPatients.includes(patient.id)
                         ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/30 border-red-500`
                         : glowingPatients.includes(patient.id)
                         ? `ring-4 ring-red-500 shadow-2xl shadow-red-500/50 animate-pulse border-red-500`
-                        : "hover:shadow-xl hover:scale-105"
-                    } overflow-hidden group`}
+                        : "border-gray-200 hover:shadow-xl hover:scale-105"
+                    }`}
+                    style={{ 
+                      position: 'relative',
+                      zIndex: isGrouped ? 20 : 10,
+                      pointerEvents: 'auto',
+                      cursor: 'move' // Explicit cursor style to override parent
+                    }}
                   >
                     {/* Header with name and age */}
                     <CardHeader className="pb-3 pt-4 px-4">
@@ -1102,6 +1318,46 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           })}
         </div>
 
+
+        {/* Group Label Cards - Draggable within the transformed canvas */}
+        <div 
+          className="absolute inset-0"
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          {patientGroups.map((group) => (
+            <Draggable
+              key={`group-${group.id}`} // Stable key - don't remount on position updates
+              position={group.position}
+              bounds={getDraggableBounds()}
+              onStop={(e, data) => {
+                console.log(`🎯 Group label drag stopped at:`, { x: data.x, y: data.y })
+                handleGroupDragStop(group.id, { x: data.x, y: data.y })
+              }}
+            >
+              <div className="absolute z-30">
+                <div
+                  className={`rounded-lg border-2 px-4 py-3 shadow-xl cursor-move ${group.bgColor} ${group.textColor} border-current backdrop-blur-sm hover:shadow-2xl transition-shadow duration-200`}
+                  style={{
+                    minWidth: '200px'
+                  }}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`w-3 h-3 rounded-full ${group.ringColor.replace('ring-', 'bg-')}`}></div>
+                    <h3 className="font-semibold text-sm">{group.name}</h3>
+                    <Badge variant="outline" className="text-xs ml-auto">
+                      {group.patientIds.length} patients
+                    </Badge>
+                  </div>
+                  <p className="text-xs opacity-80 mb-1">{group.description}</p>
+                  <p className="text-xs opacity-60 italic">🔗 Drag to move entire group</p>
+                </div>
+              </div>
+            </Draggable>
+          ))}
+        </div>
 
         {/* AI Response Cards - Positioned within the transformed canvas */}
         <div 
