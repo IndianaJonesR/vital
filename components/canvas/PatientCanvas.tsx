@@ -223,6 +223,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   
   // Patient positions state - track current positions of all patients
   const [patientPositions, setPatientPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
+  
+  // Cursor position tracking
+  const [lastCursorPosition, setLastCursorPosition] = useState<{ x: number; y: number }>({ x: 400, y: 300 })
 
   // Debug logging for highlighting
   console.log('🎨 PatientCanvas received:', { 
@@ -569,6 +572,14 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   }, [contextMenu])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    // Track cursor position for spawn location
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    if (canvasRect) {
+      const canvasX = (e.clientX - canvasRect.left - pan.x) / zoom
+      const canvasY = (e.clientY - canvasRect.top - pan.y) / zoom
+      setLastCursorPosition({ x: canvasX, y: canvasY })
+    }
+    
     if (isPanning) {
       const deltaX = e.clientX - lastPanPoint.x
       const deltaY = e.clientY - lastPanPoint.y
@@ -580,7 +591,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       
       setLastPanPoint({ x: e.clientX, y: e.clientY })
     }
-  }, [isPanning, lastPanPoint])
+  }, [isPanning, lastPanPoint, pan, zoom])
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false)
@@ -668,22 +679,21 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       // Shift + C to open prompt card
       if (e.shiftKey && e.key.toLowerCase() === 'c' && !promptCard) {
         e.preventDefault()
-        console.log('🎯 Opening CedarOS prompt card via Shift+C')
+        console.log('🎯 Opening Vital.ai prompt card via Shift+C')
         
-        // Position the prompt card in the center of the visible canvas
-        const canvasRect = canvasRef.current?.getBoundingClientRect()
-        const centerPosition = canvasRect ? {
-          x: (canvasRect.width / 2 - pan.x) / zoom - 160, // Center minus half card width
-          y: (canvasRect.height / 2 - pan.y) / zoom - 100  // Center minus half card height
-        } : { x: 400, y: 300 }
+        // Position the prompt card at the last cursor position
+        const spawnPosition = {
+          x: lastCursorPosition.x - 160, // Offset to center the card on cursor
+          y: lastCursorPosition.y - 100
+        }
         
-        setPromptCard({ position: centerPosition })
+        setPromptCard({ position: spawnPosition })
       }
     }
 
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [promptCard, pan, zoom])
+  }, [promptCard, lastCursorPosition])
 
   const getInitialPosition = (index: number) => {
     // Arrange patients in a grid initially
@@ -869,13 +879,19 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             
             // Use tracked position if available, otherwise use initial position
             const trackedPosition = patientPositions.get(patient.id)
-            const position = trackedPosition || patient.position || getInitialPosition(index)
+            const initialPosition = patient.position || getInitialPosition(index)
+            
+            // Initialize position in state if not already tracked
+            if (!trackedPosition && !patientPositions.has(patient.id)) {
+              setPatientPositions(prev => new Map(prev.set(patient.id, initialPosition)))
+            }
+            
+            const currentPosition = trackedPosition || initialPosition
 
             return (
               <Draggable
-                key={patient.id}
-                position={trackedPosition ? trackedPosition : undefined}
-                defaultPosition={!trackedPosition ? position : undefined}
+                key={`${patient.id}-${currentPosition.x}-${currentPosition.y}`} // Force re-render when position changes
+                position={currentPosition}
                 bounds={getDraggableBounds()}
                 cancel=".no-drag"
                 onStop={(e, data) => {
@@ -1065,14 +1081,14 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <div>• Pinch with two fingers to zoom on trackpad</div>
               <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
               <div>• <strong>Shift+click</strong> to open radial spell menu</div>
-              <div>• <strong>Shift+C</strong> to open CedarOS prompt for card grouping</div>
+              <div>• <strong>Shift+C</strong> to open Vital.ai prompt for card grouping</div>
               <div>• <strong>Radial menu</strong> shows context-aware AI actions</div>
               <div>• Alt+click and drag also works for panning</div>
             </div>
           </div>
         )}
 
-        {/* CedarOS Prompt Card - Positioned within the transformed canvas */}
+        {/* Vital.ai Prompt Card - Positioned within the transformed canvas */}
         {promptCard && (
           <div 
             className="absolute inset-0"

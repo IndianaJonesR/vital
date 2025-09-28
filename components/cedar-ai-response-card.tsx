@@ -84,7 +84,7 @@ export function AIResponseCard({ response, position, onClose, onConnect }: AIRes
       default:
         return {
           icon: Sparkles,
-          title: 'AI Analysis',
+          title: 'Vital.ai Analysis',
           color: 'text-blue-600'
         }
     }

@@ -77,7 +77,7 @@ export function CedarPromptCard({
                 <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-md flex items-center justify-center">
                   <Sparkles className="h-3 w-3 text-white" />
                 </div>
-                <span className="text-sm font-medium text-gray-700">CedarOS</span>
+                <span className="text-sm font-medium text-gray-700">Vital.ai</span>
               </div>
               <Button
                 variant="ghost"

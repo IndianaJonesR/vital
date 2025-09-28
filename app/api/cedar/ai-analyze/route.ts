@@ -42,8 +42,8 @@ export async function POST(request: NextRequest) {
       patientCount: context.patients.length 
     })
 
-    // Create a system prompt for the CedarOS agent
-    const systemPrompt = `You are a medical AI assistant integrated with CedarOS that helps healthcare providers organize and group patient cards on a visual canvas.
+    // Create a system prompt for the Vital.ai agent
+    const systemPrompt = `You are Vital.ai, a medical AI assistant that helps healthcare providers organize and group patient cards on a visual canvas.
 
 Your task is to analyze the user's request and provide structured grouping recommendations based on the patient data provided.
 
