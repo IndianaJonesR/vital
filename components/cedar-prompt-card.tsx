@@ -74,10 +74,10 @@ export function CedarPromptCard({
             {/* Header with drag handle */}
             <div className="flex items-center justify-between mb-4 drag-handle cursor-move">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-emerald-700 rounded-lg flex items-center justify-center">
                   <Sparkles className="h-4 w-4 text-white" />
                 </div>
-                <span className="text-base font-semibold text-gray-700">Vital.ai</span>
+                <span className="text-base font-semibold text-gray-700">Vital AI</span>
               </div>
               <Button
                 variant="ghost"
@@ -97,7 +97,7 @@ export function CedarPromptCard({
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 placeholder="How would you like to organize the patient cards?"
-                className="min-h-[140px] resize-none bg-white/80 backdrop-blur-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500/20 text-base no-drag"
+                className="min-h-[140px] resize-none bg-white/80 backdrop-blur-sm border-gray-300 focus:border-emerald-500 focus:ring-emerald-500/20 text-base no-drag"
                 disabled={isProcessing}
               />
               
@@ -107,7 +107,7 @@ export function CedarPromptCard({
                   onClick={handleSubmit}
                   disabled={!prompt.trim() || isProcessing}
                   size="default"
-                  className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white no-drag px-6 py-2"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white no-drag px-6 py-2"
                 >
                   {isProcessing ? (
                     <>

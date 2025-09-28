@@ -27,7 +27,6 @@ import {
   ZoomOut,
   RotateCcw,
   Move,
-  Grid,
   Trash2,
   MoreHorizontal,
   Menu,
@@ -348,6 +347,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
     if (onClearHighlights) {
       onClearHighlights()
     }
+    // Clear all groups and group colors (but keep patient positions)
+    setPatientGroups([])
+    setPatientGroupColors(new Map())
     setContextMenu(null)
   }, [onClearHighlights])
 
@@ -852,7 +854,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
       // Shift + C to open prompt card
       if (e.shiftKey && e.key.toLowerCase() === 'c' && !promptCard) {
         e.preventDefault()
-        console.log('🎯 Opening Vital.AI prompt card via Shift+C')
+        console.log('🎯 Opening Vital AI prompt card via Shift+C')
         
         // Position the prompt card at the last cursor position (updated for larger card)
         const spawnPosition = {
@@ -1245,10 +1247,17 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   return (
     <div className="flex-1 flex flex-col bg-background">
       {/* Canvas Controls */}
-      <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/95 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-foreground">Vital.ai Patient Dashboard</h3>
-          <Badge variant="outline" className="text-xs">
+      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-emerald-800 text-white">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-emerald-700 rounded-lg flex items-center justify-center shadow-md">
+              <Sparkles className="h-4 w-4 text-white" />
+            </div>
+            <h3 className="text-lg font-bold text-white">
+              Vital AI
+            </h3>
+          </div>
+          <Badge variant="secondary" className="bg-emerald-700 text-white border-emerald-600 font-medium">
             {patients.length} patients
           </Badge>
         </div>
@@ -1258,18 +1267,18 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             variant="outline"
             size="sm"
             onClick={handleZoomOut}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 border-emerald-600 bg-emerald-700 hover:bg-emerald-600 text-white hover:text-white"
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
-          <span className="text-sm text-muted-foreground min-w-[60px] text-center">
+          <span className="text-sm text-white min-w-[60px] text-center font-medium">
             {Math.round(zoom * 100)}%
           </span>
           <Button
             variant="outline"
             size="sm"
             onClick={handleZoomIn}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 border-emerald-600 bg-emerald-700 hover:bg-emerald-600 text-white hover:text-white"
           >
             <ZoomIn className="h-4 w-4" />
           </Button>
@@ -1277,17 +1286,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
             variant="outline"
             size="sm"
             onClick={handleReset}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 border-emerald-600 bg-emerald-700 hover:bg-emerald-600 text-white hover:text-white"
           >
             <RotateCcw className="h-4 w-4" />
-          </Button>
-          <Button
-            variant={showGrid ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowGrid(!showGrid)}
-            className="h-8 w-8 p-0"
-          >
-            <Grid className="h-4 w-4" />
           </Button>
           {/* Research Stream Toggle Button */}
           {isResearchStreamCollapsed && onToggleResearchStream && (
@@ -1295,7 +1296,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               variant="outline"
               size="sm"
               onClick={onToggleResearchStream}
-              className="h-8 w-8 p-0"
+              className="h-8 w-8 p-0 border-emerald-600 bg-emerald-700 hover:bg-emerald-600 text-white hover:text-white"
               title="Show Research Stream"
             >
               <Menu className="h-4 w-4" />
@@ -1373,9 +1374,9 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
 
           {loading && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center gap-3 p-6 bg-background/90 backdrop-blur-sm rounded-lg border border-border/50">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                <span className="text-muted-foreground">Loading patients...</span>
+              <div className="flex items-center gap-3 p-6 bg-white/90 backdrop-blur-sm rounded-lg border border-emerald-200 shadow-lg">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-700" />
+                <span className="text-emerald-800 font-medium">Loading patients...</span>
               </div>
             </div>
           )}
@@ -1535,7 +1536,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <div>• Pinch with two fingers to zoom on trackpad</div>
               <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
               <div>• <strong>Shift+click</strong> to open radial spell menu</div>
-              <div>• <strong>Shift+C</strong> to open Vital.AI prompt for card grouping</div>
+              <div>• <strong>Shift+C</strong> to open Vital AI prompt for card grouping</div>
               <div>• <strong>Shift+N</strong> to create manual note card</div>
               <div>• <strong>Radial menu</strong> shows context-aware AI actions</div>
               <div>• Alt+click and drag also works for panning</div>
@@ -1580,7 +1581,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
                   <div className="bg-yellow-200 px-3 py-2 border-b border-yellow-300 flex items-center justify-between cursor-move">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
-                      <span className="text-sm font-medium text-yellow-800">📝 Manual Note</span>
+                      <span className="text-sm font-medium text-yellow-800">📝 Notes</span>
                     </div>
                     <button
                       onClick={() => {
@@ -1625,7 +1626,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           ))}
         </div>
 
-        {/* Vital.ai Prompt Card - Positioned within the transformed canvas */}
+        {/* Vital AI Prompt Card - Positioned within the transformed canvas */}
         {promptCard && (
           <div 
             className="absolute inset-0"
