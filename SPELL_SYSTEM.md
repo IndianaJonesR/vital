@@ -6,20 +6,20 @@ This project now includes a context-aware AI spell system that integrates with t
 
 ## Features
 
-### 🪄 Unified Context Menu
+### 🪄 Cedar Radial Spell
 - **Activation**: Shift+Click anywhere on the canvas
-- **Two Tabs**: Canvas Actions and AI Spells
-- **Context-Aware**: Analyzes highlighted patients and current research updates
+- **Circular UI**: Radial menu with context-aware action buttons
+- **Predetermined Options**: Actions based on research articles and patient data
 - **AI-Powered**: Provides evidence-based medication alternatives
 - **Visual Feedback**: Animated connection lines between spell and response boxes
 
 ### 🎯 Key Components
 
-#### 1. UnifiedContextMenu Component
-- Located: `components/cedar-unified-context-menu.tsx`
-- Combines canvas actions and AI spells in one interface
-- Activates on Shift+Click with tabbed navigation
-- Auto-populates queries based on patient context
+#### 1. CedarRadialSpell Component
+- Located: `components/cedar-radial-spell.tsx`
+- Uses Cedar-OS `useSpell` hook for gesture recognition
+- Circular radial menu with context-aware actions
+- Predetermined options based on research context and patient data
 
 #### 2. AIResponseBox Component
 - Located: `components/cedar-ai-response-box.tsx`
@@ -43,16 +43,19 @@ This project now includes a context-aware AI spell system that integrates with t
 
 ### Basic Workflow
 1. **Match Patients**: Click "Match Patients" on a research article
-2. **Activate Menu**: Shift+Click anywhere on the canvas
-3. **Choose Tab**: Switch between "Canvas Actions" and "AI Spells"
-4. **Query AI**: In the AI Spells tab, enter your medication question or use the auto-populated query
+2. **Activate Radial Menu**: Shift+Click anywhere on the canvas
+3. **Choose Action**: Click on one of the predetermined radial action buttons
+4. **AI Processing**: System automatically processes based on context and patient data
 5. **View Results**: AI response appears as a draggable box with connecting line
 6. **Interact**: Expand/collapse, copy information, or access external research
 
-### Example Queries
-- "Suggest alternatives to metformin for diabetes patients"
-- "What are the best options for hypertension management?"
-- "Find medications with better insurance coverage"
+### Available Radial Actions
+- **Medication Alternatives**: Find alternative medications with insurance coverage
+- **Patient Analysis**: Analyze patient profiles and conditions
+- **Risk Assessment**: Evaluate patient risks and priority levels
+- **Treatment Plan**: Generate comprehensive treatment recommendations
+- **Research Insights**: Get AI analysis of current research articles
+- **Clear Highlights**: Clear all patient highlights from the canvas
 
 ## Technical Implementation
 

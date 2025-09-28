@@ -34,7 +34,7 @@ import {
   X,
 } from "lucide-react"
 import Draggable from "react-draggable"
-import { UnifiedContextMenu } from "@/components/cedar-unified-context-menu"
+import { CedarRadialSpell } from "@/components/cedar-radial-spell"
 import { AIResponseBox } from "@/components/cedar-ai-response-box"
 import { ConnectionManager } from "@/components/cedar-connection-line"
 
@@ -183,7 +183,7 @@ const getRiskScoreColor = (score: number) => {
 }
 
 export function PatientCanvas({ patients, highlightedPatients, glowingPatients, error, loading, onClearHighlights, isResearchStreamCollapsed, onToggleResearchStream, researchUpdate }: PatientCanvasProps) {
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(0.7) // More zoomed out by default
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [showGrid, setShowGrid] = useState(false) // Changed to false to remove grid by default
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -222,7 +222,7 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
   }, [])
 
   const handleReset = useCallback(() => {
-    setZoom(1)
+    setZoom(0.7) // Reset to more zoomed out view
     setPan({ x: 0, y: 0 })
   }, [])
 
@@ -581,20 +581,16 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
           />
         )}
 
-        {/* Unified Context Menu */}
-        {contextMenu && (
-          <UnifiedContextMenu
-            position={contextMenu}
-            context={{
-              highlightedPatients,
-              patients,
-              researchUpdate
-            }}
-            onClose={() => setContextMenu(null)}
-            onClearHighlights={handleClearHighlights}
-            onAIResponse={handleAIResponse}
-          />
-        )}
+        {/* Cedar Radial Spell */}
+        <CedarRadialSpell
+          context={{
+            highlightedPatients,
+            patients,
+            researchUpdate
+          }}
+          onAIResponse={handleAIResponse}
+          onClearHighlights={handleClearHighlights}
+        />
 
         {/* Canvas Content */}
         <div 
@@ -790,14 +786,14 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
         <ConnectionManager connections={connections} />
 
         {/* Spell Availability Indicator */}
-        {highlightedPatients.length > 0 && !contextMenu && (
+        {highlightedPatients.length > 0 && (
           <div className="absolute top-4 right-4 z-40">
             <div className="bg-blue-500/90 backdrop-blur-sm rounded-lg p-3 text-white shadow-lg border border-blue-400/50">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 animate-pulse" />
                 <div className="text-sm">
-                  <div className="font-medium">AI Actions Available</div>
-                  <div className="text-xs opacity-90">Shift+Click for unified menu</div>
+                  <div className="font-medium">AI Spells Available</div>
+                  <div className="text-xs opacity-90">Shift+Click for radial menu</div>
                 </div>
               </div>
             </div>
@@ -834,8 +830,8 @@ export function PatientCanvas({ patients, highlightedPatients, glowingPatients, 
               <div>• Mouse wheel or trackpad scroll to zoom</div>
               <div>• Pinch with two fingers to zoom on trackpad</div>
               <div>• <strong>Right-click and drag</strong> to pan the canvas</div>
-              <div>• <strong>Shift+click</strong> to open unified actions menu</div>
-              <div>• <strong>Shift+click on highlighted patients</strong> for AI spells</div>
+              <div>• <strong>Shift+click</strong> to open radial spell menu</div>
+              <div>• <strong>Radial menu</strong> shows context-aware AI actions</div>
               <div>• Alt+click and drag also works for panning</div>
             </div>
           </div>
